@@ -1,11 +1,9 @@
 import pandas as pd, numpy as np, glob
 
-# Import stations to be upgraded
-input_path = r'C:/Users/jose.delapaznoguera/Projects/NRAS/Data\Input template.csv'
-upgrade_df = pd.read_csv(input_path)
+df = pd.DataFrame([[1, 2], [4, 5], [7, 8]], index=['cobra', 'viper', 'sidewinder'], columns=['max_speed', 'shield'])
+print(df)
 
-# Transform the list into a dataframe
-upgrade_df.columns = [c.replace(' ','_') for c in upgrade_list.columns]
+jose = "A"
+df.loc[df.max_speed == 7, 'shield'] = jose
 
-
-
+print(df)
