@@ -20,7 +20,7 @@ The aim of this file is to:
 2. classify the journeys based on the O/D station categories
 """
 
-import pandas as pd, numpy as np, glob, math
+import pandas as pd, numpy as np, glob, ast
 
 # Change the settings to output thousand separators: Use f'{value:n}' For Python ≥3.6
 
@@ -65,7 +65,7 @@ pd.set_option('display.max_columns', None)
 # print(my_df.groupby("Destination_Category").Destination_Category.count())
 
 # Add numerical score based on a dictionary
-base_df = my_df
+base_df = my_df.copy()
 my_dict = {'0': 0,'A': 1, 'B': 2, 'B1': 3, 'B2': 4, 'B3': 5, 'C': 6, 'Null': -1}
 origin_score = base_df.Origin_Category.map(my_dict)
 destination_score = base_df.Destination_Category.map(my_dict)
@@ -106,7 +106,16 @@ upgrade_list = pd.read_csv(input_path)
 
 # Transform the list into a dataframe
 upgrade_list.columns = [c.replace(' ','_') for c in upgrade_list.columns]
-# print(upgrade_list.head())
+print(upgrade_list.info())
+
+# Data columns (total 3 columns):
+#  #   Column        Non-Null Count  Dtype
+# ---  ------        --------------  -----
+#  0   Station       2 non-null      object
+#  1   TLC           5 non-null      object
+#  2   New_Category  6 non-null      object
+# dtypes: object(3)
+
 
 # Create a copy of the base data frame
 scenario_1 = base_df.copy()
@@ -114,15 +123,15 @@ scenario_1 = base_df.copy()
 
 # Next steps:
 # 1. find the stations to be upgraded.
-for station in upgrade_list.TLC:
-    if str(station) == 'nan':
+for tlc in upgrade_list.TLC:
+    if str(tlc) == 'nan':
         continue
     # Update category. It is necessary to convert the series from the slicing to a string,
-    new_category = upgrade_list.New_Category[upgrade_list.TLC == station]
+    new_category = ast.literal_eval(upgrade_list.New_Category[upgrade_list.TLC == tlc])
     print(new_category)
     print(type(new_category)) # it's a series
     # This line doesn't work if I use new category
-    scenario_1.loc[scenario_1.Origin_TLC == station,  'Origin_Category'] = "ABC"
+    scenario_1.loc[scenario_1.Origin_TLC == tlc,  'Origin_Category'] = new_category
 
 # for station in upgrade_list.TLC:
 #
