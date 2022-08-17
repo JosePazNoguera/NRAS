@@ -126,40 +126,29 @@ scenario_1 = base_df.copy()
 for tlc in upgrade_list.TLC:
     if str(tlc) == 'nan':
         continue
-    # Update category. It is necessary to convert the series from the slicing to a string,
-    new_category = str(upgrade_list.New_Category[upgrade_list.TLC == tlc])
-    print(new_category)
-    print(type(new_category))
-    scenario_1.loc[scenario_1.Origin_TLC == str(tlc), 'Origin_Category'] = new_category[5]
-    # print(old_category)
-    # upgrade_list.New_Category[upgrade_list.TLC == tlc]
+    # Update category. It is necessary to use the .item() method to the Series ,
+    new_category = upgrade_list.loc[upgrade_list.TLC == tlc, 'New_Category'].item()
 
-    # print(type(new_category)) # it's a series
-    # This line doesn't work if I use new category
+    # Update origin category
+    scenario_1.loc[scenario_1.Origin_TLC == str(tlc), 'Origin_Category'] = new_category
+    # Update origin score
+    scenario_1.origin_score = scenario_1.Origin_Category.map(my_dict)
+    # Update destination category
+    scenario_1.loc[scenario_1.Destination_TLC == str(tlc), 'Destination_Category'] = new_category
+    # Update destination score
+    scenario_1.destination_score = scenario_1.Destination_Category.map(my_dict)
+    # Update journey score
+    scenario_1.jny_score = np.maximum(scenario_1.origin_score, scenario_1.destination_score)
+    # Update journey category
+    scenario_1.jny_category = scenario_1.jny_score.map(my_dict_2)
 
-# for station in upgrade_list.TLC:
-#
-#     # we may add a line to handle when there is no TLC but a station name is provided
-#     if str(station) == 'nan':
-#         continue
-#     # Update category. It is necessary to convert the series from the slicing to a string
-#     new_category = upgrade_list[upgrade_list.TLC == station].New_Category
-#     print(new_category)
-#     print(type(new_category))
-#     scenario_1.loc[scenario_1.Origin_TLC == station,  'Origin_Category'] = "A"
-#     # scenario_1.loc[scenario_1.Origin_TLC == station, 'origin_score'] = scenario_1.Origin_Category.map(my_dict)
-    # scenario_1['Destination_TLC' == station].Destination_Category = upgrade_list['TLC' == station].New_Category
-    # scenario_1['Destination_TLC' == station].destination_score = scenario_1.Destination_Category.map(my_dict)
-    # scenario_1['Origin_TLC' == station].jny_score = np.maximum(scenario_1.origin_score, scenario_1.destination_score)
-    # scenario_1['Destination_TLC' == station].jny_score = np.maximum(scenario_1.origin_score, scenario_1.destination_score)
 
 # print(base_df.info())
 # print(scenario_1.info())
 
-print(base_df.loc[base_df.Origin_TLC == "HUR",  ['Origin_TLC', 'Origin_Category']])
+print(base_df.loc[base_df.Origin_TLC == "HUR"])
 
-print(scenario_1.loc[scenario_1.Origin_TLC == "HUR",  ['Origin_TLC', 'Origin_Category']])
-
+print(scenario_1.loc[scenario_1.Origin_TLC == "HUR"])
 
 
 # 2. upgrade the category, the station score and the journey score
