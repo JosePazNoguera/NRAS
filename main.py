@@ -106,7 +106,7 @@ upgrade_list = pd.read_csv(input_path)
 
 # Transform the list into a dataframe
 upgrade_list.columns = [c.replace(' ','_') for c in upgrade_list.columns]
-print(upgrade_list.info())
+# print(upgrade_list.info())
 
 # Data columns (total 3 columns):
 #  #   Column        Non-Null Count  Dtype
@@ -127,11 +127,15 @@ for tlc in upgrade_list.TLC:
     if str(tlc) == 'nan':
         continue
     # Update category. It is necessary to convert the series from the slicing to a string,
-    new_category = ast.literal_eval(upgrade_list.New_Category[upgrade_list.TLC == tlc])
+    new_category = str(upgrade_list.New_Category[upgrade_list.TLC == tlc])
     print(new_category)
-    print(type(new_category)) # it's a series
+    print(type(new_category))
+    scenario_1.loc[scenario_1.Origin_TLC == str(tlc), 'Origin_Category'] = new_category[5]
+    # print(old_category)
+    # upgrade_list.New_Category[upgrade_list.TLC == tlc]
+
+    # print(type(new_category)) # it's a series
     # This line doesn't work if I use new category
-    scenario_1.loc[scenario_1.Origin_TLC == tlc,  'Origin_Category'] = new_category
 
 # for station in upgrade_list.TLC:
 #
@@ -151,9 +155,12 @@ for tlc in upgrade_list.TLC:
 
 # print(base_df.info())
 # print(scenario_1.info())
-print(base_df.loc[base_df.Origin_TLC == "HUR",  ['Origin_TLC', 'Origin_Category', 'origin_score', 'jny_category']])
 
-print(scenario_1.loc[scenario_1.Origin_TLC == "HUR",  ['Origin_TLC', 'Origin_Category', 'origin_score', 'jny_category']])
+print(base_df.loc[base_df.Origin_TLC == "HUR",  ['Origin_TLC', 'Origin_Category']])
+
+print(scenario_1.loc[scenario_1.Origin_TLC == "HUR",  ['Origin_TLC', 'Origin_Category']])
+
+
 
 # 2. upgrade the category, the station score and the journey score
 # 3. generate the new OD matrix. It must have the same format as the original OD matrix
