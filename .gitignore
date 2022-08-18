@@ -1,0 +1,5 @@
+# created by virtualenv automatically
+*.csv
+*.txt
+Data/
+Outputs/
