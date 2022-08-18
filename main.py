@@ -41,6 +41,31 @@ for filename in filenames:
 my_df = pd.concat(my_list, ignore_index=True)
 my_df.columns = [c.replace(' ','_') for c in my_df.columns]
 
+
+
+
+#kharesa
+#handling empty rows
+#list of the columns with nan values
+nan_cols = my_df.loc[:,my_df.isna().any(axis=0)]
+
+#if there is only one column check it isnt region, region can be ignored - metadata
+if len(nan_cols.columns) == 0:
+    if nan_cols.columns[0] == 'Region':
+        print('only region has empty rows, proceeding')
+        
+#else drop all rows within the nan columns with empty rows        
+else:
+    #if 'Total_Journeys' in nan_cols.columns:
+
+    #first does all rows with no data
+    my_df.dropna(axis=0,how='all',subset=nan_cols.columns)
+
+    #then does all rows with no data
+    my_df.dropna(axis=0,how='any',subset=nan_cols.columns)
+
+    
+    
 # Make sure we created a dataframe
 # print(type(my_df))
 # my_df.info()
