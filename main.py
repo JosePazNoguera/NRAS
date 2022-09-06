@@ -31,7 +31,7 @@ filenames = glob.glob(path + "/*.csv")
 # Create an temporary list to store the content of each file
 my_list = []
 for filename in filenames:
-    if filename == 'C:/Users/jose.delapaznoguera/Projects/NRAS/Data\Input template.csv':
+    if filename == 'C:/Users/jose.delapaznoguera/Projects/NRAS/Data/Input template.csv':
         continue
     my_list.append(pd.read_csv(filename))
 #    print(filename)
@@ -126,7 +126,7 @@ v1 = base_df.groupby("jny_category").Total_Journeys.sum()
 ### STATION UPGRADE ROUTINE
 
 # Import stations to be upgraded
-input_path = r'C:/Users/jose.delapaznoguera/Projects/NRAS/Data\Input template.csv'
+input_path = r'C:/Users/jose.delapaznoguera/Projects/NRAS/Data/Input template.csv'
 upgrade_list = pd.read_csv(input_path)
 
 # Transform the list into a dataframe
