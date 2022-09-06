@@ -1,4 +1,4 @@
-"""
+"""NRAS
 
 This work tries to estimate the category of a journey based on the categories of the
 origin and destination stations.
@@ -25,21 +25,38 @@ import pandas as pd, numpy as np, glob, ast
 # Change the settings to output thousand separators: Use f'{value:n}' For Python ≥3.6
 
 # Set the path where the data is saved. The code will pick all csv files
-path = r'C:/Users/jose.delapaznoguera/Projects/NRAS/Data'
+path = #PATH OF FOLDER WITH CSVs CONTAINED'
 filenames = glob.glob(path + "/*.csv")
 
 # Create an temporary list to store the content of each file
 my_list = []
 for filename in filenames:
-    if filename == 'C:/Users/jose.delapaznoguera/Projects/NRAS/Data/Input template.csv':
+    if filename == #PATH OF INPUT CSV:
         continue
     my_list.append(pd.read_csv(filename))
-#    print(filename)
+    print(filename)
 
 
 # Transform the list into a dataframe
 my_df = pd.concat(my_list, ignore_index=True)
 my_df.columns = [c.replace(' ','_') for c in my_df.columns]
+
+
+'''
+#Bypass for reading in files
+vs1 = pd.read_csv(PATH)
+vs2 = pd.read_csv(PATH)
+frames = [vs1,vs2]
+my_df = pd.concat(frames, ignore_index=True)
+
+#Bypass for reading upgrade list
+upgrade_list = pd.read_csv(#PATH OF INPUT CSV)
+
+#Group by functions
+grouped_origin_df = scenario_1.groupby("Origin_TLC")["Total_Journeys"].sum()
+grouped_destination_df = scenario_1.groupby("Destination_TLC")["Total_Journeys"].sum()
+
+'''
 
 
 
@@ -126,7 +143,7 @@ v1 = base_df.groupby("jny_category").Total_Journeys.sum()
 ### STATION UPGRADE ROUTINE
 
 # Import stations to be upgraded
-input_path = r'C:/Users/jose.delapaznoguera/Projects/NRAS/Data/Input template.csv'
+input_path = '#PATH OF INPUT CSV'
 upgrade_list = pd.read_csv(input_path)
 
 # Transform the list into a dataframe
