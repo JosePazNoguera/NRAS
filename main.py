@@ -1,8 +1,13 @@
-"""NRAS
+"""
+NRAS
+Author: Jose De la Paz Noguera and Kharesa-Kesa Spencer
+Date: 
+
+Description:
+
 
 This work tries to estimate the category of a journey based on the categories of the
 origin and destination stations.
-
 The category of a station can be:
     Cat     |   Description
     --------|---------------
@@ -15,187 +20,172 @@ The category of a station can be:
     0       |   Ignored
     Null    |   Ignored
 
+
 The aim of this file is to:
 1. combine several csv into a single dataframe
 2. classify the journeys based on the O/D station categories
 """
 
-import pandas as pd, numpy as np, glob, ast
+import pandas as pd, numpy as np, glob, pyodbc, ast
 
-# Change the settings to output thousand separators: Use f'{value:n}' For Python ≥3.6
-
-# Set the path where the data is saved. The code will pick all csv files
-path = #PATH OF FOLDER WITH CSVs CONTAINED'
-filenames = glob.glob(path + "/*.csv")
-
-# Create an temporary list to store the content of each file
-my_list = []
-for filename in filenames:
-    if filename == #PATH OF INPUT CSV:
-        continue
-    my_list.append(pd.read_csv(filename))
-    print(filename)
-
-
-# Transform the list into a dataframe
-my_df = pd.concat(my_list, ignore_index=True)
-my_df.columns = [c.replace(' ','_') for c in my_df.columns]
-
-
-'''
-#Bypass for reading in files
-vs1 = pd.read_csv(PATH)
-vs2 = pd.read_csv(PATH)
-frames = [vs1,vs2]
-my_df = pd.concat(frames, ignore_index=True)
-
-#Bypass for reading upgrade list
-upgrade_list = pd.read_csv(#PATH OF INPUT CSV)
-
-#Group by functions
-grouped_origin_df = scenario_1.groupby("Origin_TLC")["Total_Journeys"].sum()
-grouped_destination_df = scenario_1.groupby("Destination_TLC")["Total_Journeys"].sum()
-
-'''
-
-
-
-
-#kharesa
-#handling empty rows
-#list of the columns with nan values
-nan_cols = my_df.loc[:,my_df.isna().any(axis=0)]
-
-#if there is only one column check it isnt region, region can be ignored - metadata
-if len(nan_cols.columns) == 0:
-    if nan_cols.columns[0] == 'Region':
-        print('only region has empty rows, proceeding')
-        
-#else drop all rows within the nan columns with empty rows        
-else:
-    #if 'Total_Journeys' in nan_cols.columns:
-
-    #first does all rows with no data
-    my_df.dropna(axis=0,how='all',subset=nan_cols.columns)
-
-    #then does all rows with no data
-    my_df.dropna(axis=0,how='any',subset=nan_cols.columns)
-
+def reading_input():
     
+    #temporary variable to direct the code, when the access database is updated then we can remove
+    reading_from_access = False
+
+    if reading_from_access:
+
+        #connect to the access database
+        conn = pyodbc.connect(r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:\Users\Kharesa-Kesa.Spencer\OneDrive - Arup\Projects\Network Rail Accessibility case\matrices\MOIRAOD.accdb;')
+        '''
+        cursor = conn.cursor()
+        query = cursor.execute('select * from ODMatrix')
+        for row in cursor.fetchall():
+            print (row)
+        '''
+        query = 'select * from ODMatrix'
+        my_df = pd.read_sql(query, conn)
+
+    else:
+        #reading the files in manaually from local storage
+        vs1 = pd.read_csv(PATH)
+        vs2 = pd.read_csv(PATH)
+        frames = [vs1,vs2]
+        my_df = pd.concat(frames, ignore_index=True)
+
+
+
+    #missing values
+
+    #list of the columns with nan values
+    nan_cols = my_df.loc[:,my_df.isna().any(axis=0)]
+
+    #if there is only one column check it isnt region, region can be ignored - metadata
+    if len(nan_cols.columns) == 0:
+        if nan_cols.columns[0] == 'Region':
+            print('only region has empty rows, proceeding')
+            
+    #else drop all rows within the nan columns with empty rows        
+    else:
+        #if 'Total_Journeys' in nan_cols.columns:
+
+        #first does all rows with no data
+        my_df.dropna(axis=0,how='all',subset=nan_cols.columns)
+
+        #then does all rows with no data
+        my_df.dropna(axis=0,how='any',subset=nan_cols.columns)
+
+    return my_df
+
+def calculations(base_df):
     
-# Make sure we created a dataframe
-# print(type(my_df))
-# my_df.info()
-#
-# Data columns (total 6 columns):
-#  #   Column                Non-Null Count    Dtype
-# ---  ------                --------------    -----
-#  0   Origin_TLC            1429764 non-null  object
-#  1   Destination_TLC       1429764 non-null  object
-#  2   Origin_Category       1429764 non-null  object
-#  3   Destination_Category  1429764 non-null  object
-#  4   Total_Journeys        1429764 non-null  int64
-#  5   Region                1404689 non-null  object
-# dtypes: int64(1), object(5)
+    # Add numerical score based on a dictionary
+    my_dict = {'0': 0,'A': 1, 'B': 2, 'B1': 3, 'B2': 4, 'B3': 5, 'C': 6, 'Null': -1}
+    origin_score = base_df.Origin_Category.map(my_dict)
+    destination_score = base_df.Destination_Category.map(my_dict)
+    base_df['origin_score'] = origin_score
+    base_df['destination_score'] = destination_score
 
-# Print the first few rows to take a look. Tick the option to show all the columns
-pd.set_option('display.max_columns', None)
-# print(my_df.head(15))
+    # Remove OD pairs where the score is 0 or Null. Save the number of removed records for traceability
+    dropped_origins = base_df.origin_score[base_df.origin_score < 1].count()
+    dropped_destinations = base_df.destination_score[base_df.destination_score < 1].count()
+    base_df = base_df.drop(base_df[base_df.origin_score < 1].index)
+    base_df = base_df.drop(base_df[base_df.destination_score < 1].index)
+    # base_df.info()
+    # print(base_df.dtypes)
 
-# Take a look at the current totals per category
-# print(my_df.groupby("Origin_Category").Origin_Category.count())
-# print(my_df.groupby("Destination_Category").Destination_Category.count())
+    print(f"A total of {dropped_origins:n} origins and {dropped_destinations:n} destinations were invalid and not included in the analysis.")
 
-# Add numerical score based on a dictionary
-base_df = my_df.copy()
-my_dict = {'0': 0,'A': 1, 'B': 2, 'B1': 3, 'B2': 4, 'B3': 5, 'C': 6, 'Null': -1}
-origin_score = base_df.Origin_Category.map(my_dict)
-destination_score = base_df.Destination_Category.map(my_dict)
-base_df['origin_score'] = origin_score
-base_df['destination_score'] = destination_score
+    # Categorize the journeys by looking at the maximum numerical score of the origin and destination stations
+    jny_score = np.maximum(base_df.origin_score, base_df.destination_score)
 
-# Remove OD pairs where the score is 0 or Null. Save the number of removed records for traceability
-dropped_origins = base_df.origin_score[base_df.origin_score < 1].count()
-dropped_destinations = base_df.destination_score[base_df.destination_score < 1].count()
-base_df = base_df.drop(base_df[base_df.origin_score < 1].index)
-base_df = base_df.drop(base_df[base_df.destination_score < 1].index)
-# base_df.info()
-# print(base_df.dtypes)
+    # Add the list as a new column to the existing dataframe
+    base_df['jny_score'] = jny_score
+    my_dict_2 = {1: 'A', 2: 'B', 3: 'B1', 4: 'B2', 5: 'B3', 6: 'C'}
+    jny_category = base_df.jny_score.map(my_dict_2)
+    base_df['jny_category'] = jny_category
+    # print(base_df.tail(10))
 
-print(f"A total of {dropped_origins:n} origins and {dropped_destinations:n} destinations were invalid and not included in the analysis.")
+    #base_df.info()
+    v1 = base_df.groupby("jny_category").Total_Journeys.sum()
+    # print(v1)
+    #print(type(v1))
+    #print(base_df.tail(10))
 
-# Categorize the journeys by looking at the maximum numerical score of the origin and destination stations
-jny_score = np.maximum(base_df.origin_score, base_df.destination_score)
+    ### STATION UPGRADE ROUTINE
 
-# Add the list as a new column to the existing dataframe
-base_df['jny_score'] = jny_score
-my_dict_2 = {1: 'A', 2: 'B', 3: 'B1', 4: 'B2', 5: 'B3', 6: 'C'}
-jny_category = base_df.jny_score.map(my_dict_2)
-base_df['jny_category'] = jny_category
-# print(base_df.tail(10))
+    # Import stations to be upgraded
+    input_path = '#PATH OF INPUT CSV'
+    upgrade_list = pd.read_csv(input_path)
 
-#base_df.info()
-v1 = base_df.groupby("jny_category").Total_Journeys.sum()
-# print(v1)
-#print(type(v1))
-#print(base_df.tail(10))
+    # Transform the list into a dataframe
+    upgrade_list.columns = [c.replace(' ','_') for c in upgrade_list.columns]
+    # print(upgrade_list.info())
 
-### STATION UPGRADE ROUTINE
-
-# Import stations to be upgraded
-input_path = '#PATH OF INPUT CSV'
-upgrade_list = pd.read_csv(input_path)
-
-# Transform the list into a dataframe
-upgrade_list.columns = [c.replace(' ','_') for c in upgrade_list.columns]
-# print(upgrade_list.info())
-
-# Data columns (total 3 columns):
-#  #   Column        Non-Null Count  Dtype
-# ---  ------        --------------  -----
-#  0   Station       2 non-null      object
-#  1   TLC           5 non-null      object
-#  2   New_Category  6 non-null      object
-# dtypes: object(3)
+    # Data columns (total 3 columns):
+    #  #   Column        Non-Null Count  Dtype
+    # ---  ------        --------------  -----
+    #  0   Station       2 non-null      object
+    #  1   TLC           5 non-null      object
+    #  2   New_Category  6 non-null      object
+    # dtypes: object(3)
 
 
-# Create a copy of the base data frame
-scenario_1 = base_df.copy()
-# print(type(scenario_1))
 
-# Next steps:
-# 1. find the stations to be upgraded.
-for tlc in upgrade_list.TLC:
-    if str(tlc) == 'nan':
-        continue
-    # Update category. It is necessary to use the .item() method to the Series ,
-    new_category = upgrade_list.loc[upgrade_list.TLC == tlc, 'New_Category'].item()
+    ### STATION UPGRADE ROUTINE
 
-    # Update origin category
-    scenario_1.loc[scenario_1.Origin_TLC == str(tlc), 'Origin_Category'] = new_category
-    # Update destination category
-    scenario_1.loc[scenario_1.Destination_TLC == str(tlc), 'Destination_Category'] = new_category
+    # Import stations to be upgraded
+    input_path = '#PATH OF INPUT CSV'
+    upgrade_list = pd.read_csv(input_path)
 
-# Update origin score
-scenario_1.origin_score = scenario_1.Origin_Category.map(my_dict)
-# Update destination score
-scenario_1.destination_score = scenario_1.Destination_Category.map(my_dict)
-# Update journey score
-scenario_1.jny_score = np.maximum(scenario_1.origin_score, scenario_1.destination_score)
-# Update journey category
-scenario_1.jny_category = scenario_1.jny_score.map(my_dict_2)
+    # Transform the list into a dataframe
+    upgrade_list.columns = [c.replace(' ','_') for c in upgrade_list.columns]
+    # print(upgrade_list.info())
+
+    # Data columns (total 3 columns):
+    #  #   Column        Non-Null Count  Dtype
+    # ---  ------        --------------  -----
+    #  0   Station       2 non-null      object
+    #  1   TLC           5 non-null      object
+    #  2   New_Category  6 non-null      object
+    # dtypes: object(3)
 
 
-# print(base_df.info())
-# print(scenario_1.info())
-#
-# print(base_df.loc[base_df.Origin_TLC == "HUR", ['Origin_TLC', 'Origin_Category', 'origin_score', 'jny_score']])
-# print(scenario_1.loc[scenario_1.Origin_TLC == "HUR", ['Origin_TLC', 'Origin_Category', 'origin_score', 'jny_score']])
-# print(base_df.loc[base_df.Destination_TLC == "HUR", ['Destination_TLC', 'Destination_Category', 'destination_score',
-#                                                      'jny_score']])
-# print(scenario_1.loc[scenario_1.Destination_TLC == "HUR", ['Destination_TLC', 'Destination_Category',
-#                                                            'destination_score', 'jny_score']])
+    # Create a copy of the base data frame
+    scenario_1 = base_df.copy()
+    # print(type(scenario_1))
 
-out_path = r'C:/Users/jose.delapaznoguera/Projects/NRAS/Outputs/Scenario_1.txt'
+    # Next steps:
+    # 1. find the stations to be upgraded.
+    for tlc in upgrade_list.TLC:
+        if str(tlc) == 'nan':
+            continue
+        # Update category. It is necessary to use the .item() method to the Series ,
+        new_category = upgrade_list.loc[upgrade_list.TLC == tlc, 'New_Category'].item()
 
-np.savetxt(out_path, scenario_1, fmt='%s')
+        # Update origin category
+        scenario_1.loc[scenario_1.Origin_TLC == str(tlc), 'Origin_Category'] = new_category
+        # Update destination category
+        scenario_1.loc[scenario_1.Destination_TLC == str(tlc), 'Destination_Category'] = new_category
+
+    # Update origin score
+    scenario_1.origin_score = scenario_1.Origin_Category.map(my_dict)
+    # Update destination score
+    scenario_1.destination_score = scenario_1.Destination_Category.map(my_dict)
+    # Update journey score
+    scenario_1.jny_score = np.maximum(scenario_1.origin_score, scenario_1.destination_score)
+    # Update journey category
+    scenario_1.jny_category = scenario_1.jny_score.map(my_dict_2)
+
+    return scenario_1
+
+
+def main():
+    #Initalising the base df through the inputs
+    base_df = reading_input()
+    print('Database loaded in successfully of shape: ', base_df.shape)
+
+
+    # removing O-D pairs with 0 or null and categorising journeys 
+    scenario_1 = calculations()
+
