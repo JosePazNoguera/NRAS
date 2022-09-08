@@ -31,7 +31,7 @@ filenames = glob.glob(path + "/*.csv")
 # Create an temporary list to store the content of each file
 my_list = []
 for filename in filenames:
-    if filename == 'C:/Users/jose.delapaznoguera/Projects/NRAS/Data/Input template.csv':
+    if filename == 'C:/Users/jose.delapaznoguera/Projects/NRAS/Data\\Input template.csv' or filename == 'C:/Users/jose.delapaznoguera/Projects/NRAS/Data\\Demographics.csv':
         continue
     my_list.append(pd.read_csv(filename))
 #    print(filename)
@@ -39,33 +39,26 @@ for filename in filenames:
 
 # Transform the list into a dataframe
 my_df = pd.concat(my_list, ignore_index=True)
-my_df.columns = [c.replace(' ','_') for c in my_df.columns]
+my_df.columns = [c.replace(' ', '_') for c in my_df.columns]
 
+# list of the columns with nan values
+nan_cols = my_df.loc[:, my_df.isna().any(axis=0)]
 
-
-
-#kharesa
-#handling empty rows
-#list of the columns with nan values
-nan_cols = my_df.loc[:,my_df.isna().any(axis=0)]
-
-#if there is only one column check it isnt region, region can be ignored - metadata
+# if there is only one column check it isnt region, region can be ignored - metadata
 if len(nan_cols.columns) == 0:
     if nan_cols.columns[0] == 'Region':
         print('only region has empty rows, proceeding')
-        
-#else drop all rows within the nan columns with empty rows        
+
+# else drop all rows within the nan columns with empty rows
 else:
-    #if 'Total_Journeys' in nan_cols.columns:
+    # if 'Total_Journeys' in nan_cols.columns:
 
-    #first does all rows with no data
-    my_df.dropna(axis=0,how='all',subset=nan_cols.columns)
+    # first does all rows with no data
+    my_df.dropna(axis=0, how='all', subset=nan_cols.columns)
 
-    #then does all rows with no data
-    my_df.dropna(axis=0,how='any',subset=nan_cols.columns)
+    # then does all rows with no data
+    my_df.dropna(axis=0, how='any', subset=nan_cols.columns)
 
-    
-    
 # Make sure we created a dataframe
 # print(type(my_df))
 # my_df.info()
@@ -89,9 +82,11 @@ pd.set_option('display.max_columns', None)
 # print(my_df.groupby("Origin_Category").Origin_Category.count())
 # print(my_df.groupby("Destination_Category").Destination_Category.count())
 
-# Add numerical score based on a dictionary
+
+# create a copy of our dataframe
 base_df = my_df.copy()
-my_dict = {'0': 0,'A': 1, 'B': 2, 'B1': 3, 'B2': 4, 'B3': 5, 'C': 6, 'Null': -1}
+# Add numerical score based on a dictionary
+my_dict = {'0': 0, 'A': 1, 'B': 2, 'B1': 3, 'B2': 4, 'B3': 5, 'C': 6, 'Null': -1}
 origin_score = base_df.Origin_Category.map(my_dict)
 destination_score = base_df.Destination_Category.map(my_dict)
 base_df['origin_score'] = origin_score
@@ -105,7 +100,8 @@ base_df = base_df.drop(base_df[base_df.destination_score < 1].index)
 # base_df.info()
 # print(base_df.dtypes)
 
-print(f"A total of {dropped_origins:n} origins and {dropped_destinations:n} destinations were invalid and not included in the analysis.")
+print(
+    f"A total of {dropped_origins:n} origins and {dropped_destinations:n} destinations were invalid and not included in the analysis.")
 
 # Categorize the journeys by looking at the maximum numerical score of the origin and destination stations
 jny_score = np.maximum(base_df.origin_score, base_df.destination_score)
@@ -117,11 +113,11 @@ jny_category = base_df.jny_score.map(my_dict_2)
 base_df['jny_category'] = jny_category
 # print(base_df.tail(10))
 
-#base_df.info()
+# base_df.info()
 v1 = base_df.groupby("jny_category").Total_Journeys.sum()
 # print(v1)
-#print(type(v1))
-#print(base_df.tail(10))
+# print(type(v1))
+# print(base_df.tail(10))
 
 ### STATION UPGRADE ROUTINE
 
@@ -130,7 +126,7 @@ input_path = r'C:/Users/jose.delapaznoguera/Projects/NRAS/Data/Input template.cs
 upgrade_list = pd.read_csv(input_path)
 
 # Transform the list into a dataframe
-upgrade_list.columns = [c.replace(' ','_') for c in upgrade_list.columns]
+upgrade_list.columns = [c.replace(' ', '_') for c in upgrade_list.columns]
 # print(upgrade_list.info())
 
 # Data columns (total 3 columns):
@@ -168,17 +164,40 @@ scenario_1.jny_score = np.maximum(scenario_1.origin_score, scenario_1.destinatio
 # Update journey category
 scenario_1.jny_category = scenario_1.jny_score.map(my_dict_2)
 
+# Concat the 2 categories together
+concat_categories = scenario_1.Origin_Category + scenario_1.Destination_Category
+scenario_1['concat_categories'] = concat_categories
 
-# print(base_df.info())
-# print(scenario_1.info())
+# We need to select the journeys where one end is accessible and the other is not.
+# Step 1: select jnys where at least 1 end is accessible
+scenario_1_clean = scenario_1.loc[(scenario_1.Origin_Category == 'A') | (scenario_1.Origin_Category == 'B1')
+                                  | (scenario_1.Destination_Category == 'A') | (
+                                              scenario_1.Destination_Category == 'B1')]
+
+# Step 2: remove jnys where both ends are accessible
+scenario_1_clean = scenario_1_clean.loc[(scenario_1_clean.concat_categories != 'AA') &
+                                        (scenario_1_clean.concat_categories != 'AB1') &
+                                        (scenario_1_clean.concat_categories != 'B1A') &
+                                        (scenario_1_clean.concat_categories != 'B1B1')
+                                        ]
+
 #
-# print(base_df.loc[base_df.Origin_TLC == "HUR", ['Origin_TLC', 'Origin_Category', 'origin_score', 'jny_score']])
-# print(scenario_1.loc[scenario_1.Origin_TLC == "HUR", ['Origin_TLC', 'Origin_Category', 'origin_score', 'jny_score']])
-# print(base_df.loc[base_df.Destination_TLC == "HUR", ['Destination_TLC', 'Destination_Category', 'destination_score',
-#                                                      'jny_score']])
-# print(scenario_1.loc[scenario_1.Destination_TLC == "HUR", ['Destination_TLC', 'Destination_Category',
-#                                                            'destination_score', 'jny_score']])
+# # print(base_df.info())
+# print(scenario_1.info())
 
-out_path = r'C:/Users/jose.delapaznoguera/Projects/NRAS/Outputs/Scenario_1.txt'
+# grouping by TLC and cat and totalling journeys, setting all Cat A as None
+grouped_origin_df = (scenario_1_clean.groupby(["Origin_TLC", "Origin_Category"])["Total_Journeys"].sum()).to_frame()
+grouped_origin_df.reset_index(inplace=True)
+grouped_origin_df.loc[grouped_origin_df.Origin_Category == 'A', 'Total_Journeys'] = None
+grouped_origin_df.loc[grouped_origin_df.Origin_Category == 'B1', 'Total_Journeys'] = None
 
-np.savetxt(out_path, scenario_1, fmt='%s')
+grouped_destination_df = (
+    scenario_1_clean.groupby(["Destination_TLC", "Destination_Category"])["Total_Journeys"].sum()).to_frame()
+grouped_destination_df.reset_index(inplace=True)
+grouped_destination_df.loc[grouped_destination_df.Destination_Category == 'A', 'Total_Journeys'] = None
+grouped_destination_df.loc[grouped_destination_df.Destination_Category == 'B1', 'Total_Journeys'] = None
+
+# saving these to csv
+grouped_origin_df.to_csv('Outputs/origin_grouped_By.csv')
+grouped_destination_df.to_csv('Outputs/destination_grouped_By.csv')
+scenario_1_clean.to_csv('Outputs/scen_1_clean.csv')
