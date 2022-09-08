@@ -184,13 +184,6 @@ scenario_1_clean = scenario_1_clean.loc[(scenario_1_clean.concat_categories != '
 #
 # # print(base_df.info())
 # print(scenario_1.info())
-#
-# print(base_df.loc[base_df.Origin_TLC == "HUR", ['Origin_TLC', 'Origin_Category', 'origin_score', 'jny_score']])
-# print(scenario_1.loc[scenario_1.Origin_TLC == "HUR", ['Origin_TLC', 'Origin_Category', 'origin_score', 'jny_score']])
-# print(base_df.loc[base_df.Destination_TLC == "HUR", ['Destination_TLC', 'Destination_Category', 'destination_score',
-#                                                      'jny_score']])
-# print(scenario_1.loc[scenario_1.Destination_TLC == "HUR", ['Destination_TLC', 'Destination_Category',
-#                                                            'destination_score', 'jny_score']])
 
 # grouping by TLC and cat and totalling journeys, setting all Cat A as None
 grouped_origin_df = (scenario_1_clean.groupby(["Origin_TLC", "Origin_Category"])["Total_Journeys"].sum()).to_frame()
