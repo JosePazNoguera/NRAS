@@ -26,7 +26,7 @@ The aim of this file is to:
 2. classify the journeys based on the O/D station categories
 """
 
-import pandas as pd, numpy as np, glob, ast, openpyxl, shutil, pyodbc
+import pandas as pd, numpy as np, glob, ast, openpyxl, shutil, pyodbc, random
 from openpyxl import Workbook
 
 
@@ -161,25 +161,45 @@ def calculations(base_df):
     # Update journey category
     scenario_1.jny_category = scenario_1.jny_score.map(my_dict_2)
 
+    # Concat the 2 categories together
+    scenario_1['concat_categories'] = scenario_1.Origin_Category + scenario_1.Destination_Category
+
     return scenario_1
 
 def into_stepfree_spreadsheet(scenario_1):
     
+    #random scenario number for naming convention, to be replaced by input script number
+    sn = str(random.randint(100, 999))
+
+    # We need to select the journeys where one end is accessible and the other is not.
+    # Step 1: select jnys where at least 1 end is accessible
+    scenario_1_clean = scenario_1.loc[(scenario_1.Origin_Category =='A') | (scenario_1.Origin_Category =='B1')
+                | (scenario_1.Destination_Category =='A') | (scenario_1.Destination_Category =='B1')]
+
+    # Step 2: remove jnys where both ends are accessible
+    scenario_1_clean = scenario_1_clean.loc[(scenario_1_clean.concat_categories != 'AA') &
+                                            (scenario_1_clean.concat_categories != 'AB1') &
+                                            (scenario_1_clean.concat_categories != 'B1A') &
+                                            (scenario_1_clean.concat_categories != 'B1B1')
+    ]
+
+
     #grouping by TLC and cat and totalling journeys, setting all Cat A as None
-    grouped_origin_df= (scenario_1.groupby(["Origin_TLC","Origin_Category"])["Total_Journeys"].sum()).to_frame()
+    grouped_origin_df= (scenario_1_clean.groupby(["Origin_TLC","Origin_Category"])["Total_Journeys"].sum()).to_frame()
     grouped_origin_df.reset_index(inplace=True)
     grouped_origin_df.loc[grouped_origin_df.Origin_Category=='A', 'Total_Journeys'] = None
     grouped_origin_df.loc[grouped_origin_df.Origin_Category=='B1', 'Total_Journeys'] = None 
 
 
-    grouped_destination_df= (scenario_1.groupby(["Destination_TLC","Destination_Category"])["Total_Journeys"].sum()).to_frame()
+    grouped_destination_df= (scenario_1_clean.groupby(["Destination_TLC","Destination_Category"])["Total_Journeys"].sum()).to_frame()
     grouped_destination_df.reset_index(inplace=True)
     grouped_destination_df.loc[grouped_destination_df.Destination_Category=='A', 'Total_Journeys'] = None 
     grouped_destination_df.loc[grouped_destination_df.Destination_Category=='B1', 'Total_Journeys'] = None 
-    
-    #saving these to csv
+
+
     grouped_origin_df.to_csv('origin_grouped_By.csv')
     grouped_destination_df.to_csv('destination_grouped_By.csv')
+
 
 
 
@@ -196,17 +216,32 @@ def into_stepfree_spreadsheet(scenario_1):
 
     shutil.copyfile(original, target)
 
-
+    '''
     #the clone is then loaded into pandas directly with the sheet name defined
-    workbook_origin = pd.read_excel(
-        '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/step_free_clone.xlsx', 
+    workbook_origin = pd.read_excel('/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/step_free_clone.xlsx', 
         sheet_name='Inaccessible O Accessi D')
 
     workbook_destination = pd.read_excel(
         '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/step_free_clone.xlsx', 
         sheet_name='Accessible O Inaccessi D')
-
+    '''
     #then you can write directly to the sheet 
+
+    '''
+    # create excel writer
+    writer = pd.ExcelWriter('/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/step_free_clone.xlsx')
+    # write dataframe to excel sheet named 'marks'
+    grouped_origin_df.to_excel(writer, 'Accessible O Inaccessi D')
+    # save the excel file
+    writer.save()
+    '''
+    grouped_origin_df.to_excel('/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00_clone.xlsx', 
+        sheet_name='Accessible O Inaccessi D', engine='openpyxl')
+
+    grouped_destination_df.to_excel('/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00_clone.xlsx', 
+        sheet_name='Inaccessible O Accessi D', engine='openpyxl')
+
+
     #this is the group by function result is directly exported into the sheet
 
 
@@ -246,5 +281,3 @@ def main():
     into_stepfree_spreadsheet(scenario_1)
 
     
-
-
