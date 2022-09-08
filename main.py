@@ -1,6 +1,6 @@
 """
 NRAS
-Author: Jose De la Paz Noguera and Kharesa-Kesa Spencer
+Authors: Jose De la Paz Noguera and Kharesa-Kesa Spencer
 Date: 
 
 Description:
@@ -26,7 +26,9 @@ The aim of this file is to:
 2. classify the journeys based on the O/D station categories
 """
 
-import pandas as pd, numpy as np, glob, pyodbc, ast
+import pandas as pd, numpy as np, glob, ast, openpyxl, shutil, pyodbc
+from openpyxl import Workbook
+
 
 def reading_input():
     
@@ -48,8 +50,8 @@ def reading_input():
 
     else:
         #reading the files in manaually from local storage
-        vs1 = pd.read_csv(PATH)
-        vs2 = pd.read_csv(PATH)
+        vs1 = pd.read_csv('/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/matrices/Vector save.csv')
+        vs2 = pd.read_csv('/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/matrices/Vector save 2.csv')
         frames = [vs1,vs2]
         my_df = pd.concat(frames, ignore_index=True)
 
@@ -112,30 +114,12 @@ def calculations(base_df):
     #print(type(v1))
     #print(base_df.tail(10))
 
-    ### STATION UPGRADE ROUTINE
-
-    # Import stations to be upgraded
-    input_path = '#PATH OF INPUT CSV'
-    upgrade_list = pd.read_csv(input_path)
-
-    # Transform the list into a dataframe
-    upgrade_list.columns = [c.replace(' ','_') for c in upgrade_list.columns]
-    # print(upgrade_list.info())
-
-    # Data columns (total 3 columns):
-    #  #   Column        Non-Null Count  Dtype
-    # ---  ------        --------------  -----
-    #  0   Station       2 non-null      object
-    #  1   TLC           5 non-null      object
-    #  2   New_Category  6 non-null      object
-    # dtypes: object(3)
-
 
 
     ### STATION UPGRADE ROUTINE
 
     # Import stations to be upgraded
-    input_path = '#PATH OF INPUT CSV'
+    input_path = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/matrices/Input template.csv'
     upgrade_list = pd.read_csv(input_path)
 
     # Transform the list into a dataframe
@@ -179,6 +163,75 @@ def calculations(base_df):
 
     return scenario_1
 
+def into_stepfree_spreadsheet(scenario_1):
+    
+    #grouping by TLC and cat and totalling journeys, setting all Cat A as None
+    grouped_origin_df= (scenario_1.groupby(["Origin_TLC","Origin_Category"])["Total_Journeys"].sum()).to_frame()
+    grouped_origin_df.reset_index(inplace=True)
+    grouped_origin_df.loc[grouped_origin_df.Origin_Category=='A', 'Total_Journeys'] = None
+    grouped_origin_df.loc[grouped_origin_df.Origin_Category=='B1', 'Total_Journeys'] = None 
+
+
+    grouped_destination_df= (scenario_1.groupby(["Destination_TLC","Destination_Category"])["Total_Journeys"].sum()).to_frame()
+    grouped_destination_df.reset_index(inplace=True)
+    grouped_destination_df.loc[grouped_destination_df.Destination_Category=='A', 'Total_Journeys'] = None 
+    grouped_destination_df.loc[grouped_destination_df.Destination_Category=='B1', 'Total_Journeys'] = None 
+    
+    #saving these to csv
+    grouped_origin_df.to_csv('origin_grouped_By.csv')
+    grouped_destination_df.to_csv('destination_grouped_By.csv')
+
+
+
+
+
+    #defining the locations of the excel spreadsheets
+    excel_path = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00.xlsx'
+    excel_location = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/'
+
+    #this section here reads in the origin spreadsheet and then copies it and saves it as a clone
+
+    original = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00.xlsx'
+    target = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00_clone.xlsx'
+
+    shutil.copyfile(original, target)
+
+
+    #the clone is then loaded into pandas directly with the sheet name defined
+    workbook_origin = pd.read_excel(
+        '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/step_free_clone.xlsx', 
+        sheet_name='Inaccessible O Accessi D')
+
+    workbook_destination = pd.read_excel(
+        '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/step_free_clone.xlsx', 
+        sheet_name='Accessible O Inaccessi D')
+
+    #then you can write directly to the sheet 
+    #this is the group by function result is directly exported into the sheet
+
+
+    #get a list of stations missing in the dataframe but present in the spreadsheet
+
+    results_o = []
+    results_d = []
+
+    list_sheet = list(workbook_destination['CRS'])
+    list_script = list(grouped_destination_df['Destination_TLC'])
+
+    for v in list_sheet:
+        if v not in list_script:
+            results_d.append(v)
+
+    list_sheet = list(workbook_origin['CRS'])
+    list_script = list(grouped_origin_df['Origin_TLC'])
+
+    for v in list_sheet:
+        if v not in list_script:
+            results_o.append(v)
+    
+
+
+
 
 def main():
     #Initalising the base df through the inputs
@@ -187,5 +240,11 @@ def main():
 
 
     # removing O-D pairs with 0 or null and categorising journeys 
-    scenario_1 = calculations()
+    scenario_1 = calculations(base_df)
+
+
+    into_stepfree_spreadsheet(scenario_1)
+
+    
+
 
