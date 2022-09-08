@@ -170,9 +170,11 @@ scenario_1['concat_categories'] = concat_categories
 
 # We need to select the journeys where one end is accessible and the other is not.
 # Step 1: select jnys where at least 1 end is accessible
-scenario_1_clean = scenario_1.loc[(scenario_1.Origin_Category == 'A') | (scenario_1.Origin_Category == 'B1')
-                                  | (scenario_1.Destination_Category == 'A') | (
-                                              scenario_1.Destination_Category == 'B1')]
+scenario_1_clean = scenario_1.loc[(scenario_1.Origin_Category == 'A') |
+                                  (scenario_1.Origin_Category == 'B1') |
+                                  (scenario_1.Destination_Category == 'A') |
+                                  (scenario_1.Destination_Category == 'B1')
+]
 
 # Step 2: remove jnys where both ends are accessible
 scenario_1_clean = scenario_1_clean.loc[(scenario_1_clean.concat_categories != 'AA') &
