@@ -28,7 +28,7 @@ The aim of this file is to:
 
 import pandas as pd, numpy as np, glob, ast, openpyxl, shutil, pyodbc, random
 from openpyxl import Workbook
-
+from openpyxl import load_workbook
 
 def reading_input():
     
@@ -180,8 +180,7 @@ def into_stepfree_spreadsheet(scenario_1):
     scenario_1_clean = scenario_1_clean.loc[(scenario_1_clean.concat_categories != 'AA') &
                                             (scenario_1_clean.concat_categories != 'AB1') &
                                             (scenario_1_clean.concat_categories != 'B1A') &
-                                            (scenario_1_clean.concat_categories != 'B1B1')
-    ]
+                                            (scenario_1_clean.concat_categories != 'B1B1')]
 
 
     #grouping by TLC and cat and totalling journeys, setting all Cat A as None
@@ -197,6 +196,7 @@ def into_stepfree_spreadsheet(scenario_1):
     grouped_destination_df.loc[grouped_destination_df.Destination_Category=='B1', 'Total_Journeys'] = None 
 
 
+    #Save to CSVs
     grouped_origin_df.to_csv('origin_grouped_By.csv')
     grouped_destination_df.to_csv('destination_grouped_By.csv')
 
@@ -214,6 +214,7 @@ def into_stepfree_spreadsheet(scenario_1):
     original = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00.xlsx'
     target = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00_clone.xlsx'
 
+    #copying file files
     shutil.copyfile(original, target)
 
     '''
@@ -234,12 +235,21 @@ def into_stepfree_spreadsheet(scenario_1):
     grouped_origin_df.to_excel(writer, 'Accessible O Inaccessi D')
     # save the excel file
     writer.save()
-    '''
+   
     grouped_origin_df.to_excel('/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00_clone.xlsx', 
         sheet_name='Accessible O Inaccessi D', engine='openpyxl')
 
     grouped_destination_df.to_excel('/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00_clone.xlsx', 
         sheet_name='Inaccessible O Accessi D', engine='openpyxl')
+
+    https://openpyxl.readthedocs.io/en/stable/usage.html
+    '''
+
+
+    #read in the workbook and then write and replace the sheets
+    with pd.ExcelWriter("/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00_clone.xlsx", mode="a",engine="openpyxl",if_sheet_exists="replace",) as writer:
+       grouped_origin_df.to_excel(writer, sheet_name="Inaccessible O Accessi D")
+       grouped_destination_df.to_excel(writer, sheet_name="Accessible O Inaccessi D") 
 
 
     #this is the group by function result is directly exported into the sheet
@@ -247,23 +257,6 @@ def into_stepfree_spreadsheet(scenario_1):
 
     #get a list of stations missing in the dataframe but present in the spreadsheet
 
-    results_o = []
-    results_d = []
-
-    list_sheet = list(workbook_destination['CRS'])
-    list_script = list(grouped_destination_df['Destination_TLC'])
-
-    for v in list_sheet:
-        if v not in list_script:
-            results_d.append(v)
-
-    list_sheet = list(workbook_origin['CRS'])
-    list_script = list(grouped_origin_df['Origin_TLC'])
-
-    for v in list_sheet:
-        if v not in list_script:
-            results_o.append(v)
-    
 
 
 
@@ -281,3 +274,5 @@ def main():
     into_stepfree_spreadsheet(scenario_1)
 
     
+
+
