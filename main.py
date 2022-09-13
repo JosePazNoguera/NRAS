@@ -34,7 +34,7 @@ def reading_input():
     
     #temporary variable to direct the code, when the access database is updated then we can remove
     reading_from_access = False
-
+    
     if reading_from_access:
 
         #connect to the access database
@@ -54,6 +54,12 @@ def reading_input():
         vs2 = pd.read_csv('/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/matrices/Vector save 2.csv')
         frames = [vs1,vs2]
         my_df = pd.concat(frames, ignore_index=True)
+
+
+
+    #Merging the input and the spreadsheet data together, essentially updating the df
+    
+
 
 
 
@@ -118,6 +124,23 @@ def calculations(base_df):
 
     ### STATION UPGRADE ROUTINE
 
+    #reading from the spreadsheet
+    st_cat_df = pd.read_excel(
+    '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00_clone.xlsm', 
+    sheet_name = "St_Cat", engine='openpyxl')
+
+    #dropping extras
+    #*TO CHANGE* if the sheet is resized and the table starts in the correct
+    st_cat_df.drop(index=0, inplace=True)
+    st_cat_df.drop(columns='Unnamed: 0', inplace=True)
+    st_cat_df.columns = st_cat_df.iloc[0]
+    st_cat_df.drop(index=1, inplace=True)
+    #st_cat_df = df[['CRS Code','Station Name (MOIRA Name)','Category','Region']]
+    st_cat_df.rename(columns={'CRS Code': 'CRS_Code', 'Station Name (MOIRA Name)': 'Station_Name'},inplace=True)
+    #dropping duplicate of crs code
+    st_cat_df = st_cat_df.loc[:,~st_cat_df.columns.duplicated()].copy()
+
+
     # Import stations to be upgraded
     input_path = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/matrices/Input template.csv'
     upgrade_list = pd.read_csv(input_path)
@@ -151,6 +174,18 @@ def calculations(base_df):
         scenario_1.loc[scenario_1.Origin_TLC == str(tlc), 'Origin_Category'] = new_category
         # Update destination category
         scenario_1.loc[scenario_1.Destination_TLC == str(tlc), 'Destination_Category'] = new_category
+
+        #if the current tlc is in the station category spreadsheet then upgrade st_cat_df with new category
+        if tlc in st_cat_df.values:
+            new_category1 = upgrade_list.loc[upgrade_list.TLC == tlc, 'New_Category'].item()
+            st_cat_df.loc[st_cat_df.CRS_Code == str(tlc), 'Category'] = new_category1
+
+    #export back to csv
+    with pd.ExcelWriter("'/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00_clone.xlsm'", mode="a",engine="openpyxl",if_sheet_exists="replace",) as writer:
+        st_cat_df.to_excel(writer, sheet_name="new_St_Cat")
+
+
+
 
     # Update origin score
     scenario_1.origin_score = scenario_1.Origin_Category.map(my_dict)
@@ -211,8 +246,8 @@ def into_stepfree_spreadsheet(scenario_1):
 
     #this section here reads in the origin spreadsheet and then copies it and saves it as a clone
 
-    original = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00.xlsx'
-    target = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00_clone.xlsx'
+    original = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00.xlsm'
+    target = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00_clone.xlsm'
 
     #copying file files
     shutil.copyfile(original, target)
@@ -247,7 +282,7 @@ def into_stepfree_spreadsheet(scenario_1):
 
 
     #read in the workbook and then write and replace the sheets
-    with pd.ExcelWriter("/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00_clone.xlsx", mode="a",engine="openpyxl",if_sheet_exists="replace",) as writer:
+    with pd.ExcelWriter("/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case CSV WORK/Step Free Scoring_JDL_v3.00_clone.xlsx", mode="a",engine="openpyxl",if_sheet_exists="replace",) as writer:
        grouped_origin_df.to_excel(writer, sheet_name="Inaccessible O Accessi D")
        grouped_destination_df.to_excel(writer, sheet_name="Accessible O Inaccessi D") 
 
@@ -273,6 +308,65 @@ def main():
 
     into_stepfree_spreadsheet(scenario_1)
 
+
     
+
+'''
+scenario_2 = pd.merge(scenario_1, test_df[['CRS_Code','Including CP6 AfA']], how='left', left_on='Origin_TLC', right_on='CRS_Code')
+
+scenario_2['Accessible'] = scenario_2['concat_categories'].replace(['CB3','B3C','CC','B3B3'],'0')
+
+scenario_2['Accessible'] = scenario_2['Accessible'].replace(lol,'1')
+
+scenario_2['Accessible'] = scenario_2['Accesible'].replace(['AA','AB1','B1B1','B1A'],'2')
+
+
+(scenario_2.groupby('Accessible')['Total_Journeys'].sum())/scenario_2['Total_Journeys'].sum()
+
+
+not_fully_acc = ['BB3',
+ 'B1B2',
+ 'CC',
+ 'B3B2',
+ 'B1C',
+ 'B2B2',
+ 'CA',
+ 'B1B',
+ 'B2B1',
+ 'BB2',
+ 'BC',
+ 'B3B',
+ 'BB',
+ 'CB2',
+ 'B3A',
+ 'B2A',
+ 'AC',
+ 'B3B3',
+ 'AB',
+ 'CB3',
+ 'B2B3',
+ 'AB3',
+ 'AB2',
+ 'B2C',
+ 'BA',
+ 'BB1',
+ 'CB1',
+ 'B1B3',
+ 'B3B1',
+ 'B3C',
+ 'B2B',
+ 'CB']
+
+
+ full_access = ['AA','AB1','B1B1','B1A']
+
+
+
+
+
+
+
+
+'''
 
 
