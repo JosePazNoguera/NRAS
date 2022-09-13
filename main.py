@@ -203,3 +203,24 @@ grouped_destination_df.loc[grouped_destination_df.Destination_Category == 'B1', 
 grouped_origin_df.to_csv('Outputs/origin_grouped_By.csv')
 grouped_destination_df.to_csv('Outputs/destination_grouped_By.csv')
 scenario_1_clean.to_csv('Outputs/scen_1_clean.csv')
+
+kyle_df = scenario_1.copy()
+def bad_flows(row):
+    if row["Origin_Category"] == "B3":
+        val = 1
+    elif row["Origin_Category"] == "C":
+        val = 1
+    elif row["Destination_Category"] == "B3":
+        val = 1
+    elif row["Destination_Category"] == "C":
+        val = 1
+    else:
+        val = 0
+    return val
+
+kyle_df['C_or_B3_flag'] = kyle_df.apply(bad_flows, axis=1)
+
+kyle_df['C_or_B3_jnys'] = kyle_df.Total_Journeys * kyle_df.C_or_B3_flag
+
+kyle_df = kyle_df.groupby(["Region"])["Total_Journeys", "C_or_B3_jnys"].sum()
+
