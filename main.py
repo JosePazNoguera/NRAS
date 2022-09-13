@@ -204,23 +204,18 @@ grouped_origin_df.to_csv('Outputs/origin_grouped_By.csv')
 grouped_destination_df.to_csv('Outputs/destination_grouped_By.csv')
 scenario_1_clean.to_csv('Outputs/scen_1_clean.csv')
 
+
+### Table for Kyle: percentage of bad journeys in each region
 kyle_df = scenario_1.copy()
-def bad_flows(row):
-    if row["Origin_Category"] == "B3":
-        val = 1
-    elif row["Origin_Category"] == "C":
-        val = 1
-    elif row["Destination_Category"] == "B3":
-        val = 1
-    elif row["Destination_Category"] == "C":
-        val = 1
-    else:
-        val = 0
-    return val
+bad_jnys = kyle_df.loc[(kyle_df.Origin_Category == 'B3') |
+                      (kyle_df.Origin_Category == 'C') |
+                      (kyle_df.Destination_Category == 'B3') |
+                      (kyle_df.Destination_Category == 'C')]
 
-kyle_df['C_or_B3_flag'] = kyle_df.apply(bad_flows, axis=1)
+bad_jnys = bad_jnys.loc[:, ["Region", "Total_Journeys"]]
+bad_jnys = bad_jnys.groupby(["Region"]).sum()
 
-kyle_df['C_or_B3_jnys'] = kyle_df.Total_Journeys * kyle_df.C_or_B3_flag
-
-kyle_df = kyle_df.groupby(["Region"])["Total_Journeys", "C_or_B3_jnys"].sum()
-
+kyle_df = kyle_df.loc[:, ["Region", "Total_Journeys"]]
+kyle_df = kyle_df.groupby(["Region"]).sum()
+kyle_df['Bad_journeys'] = bad_jnys
+kyle_df['Bad_journeys_%'] = kyle_df.Bad_journeys / kyle_df.Total_Journeys * 100
