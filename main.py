@@ -293,8 +293,6 @@ def into_stepfree_spreadsheet(scenario_1, target):
 
 #get a list of stations missing in the dataframe but present in the spreadsheet
 
-    
-
 
 
 def main():
@@ -372,7 +370,11 @@ not_fully_acc = ['BB3',
  'CB']
 
 
- full_access = ['AA','AB1','B1B1','B1A'
+ full_access = ['AA','AB1','B1B1','B1A']
 
 
 '''
+
+
+if __name__ == "__main__":
+    main()
