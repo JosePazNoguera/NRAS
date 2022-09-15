@@ -26,9 +26,12 @@ The aim of this file is to:
 2. classify the journeys based on the O/D station categories
 """
 
-import pandas as pd, numpy as np, glob, ast, openpyxl, shutil, pyodbc, random
+from operator import index
+import pandas as pd, numpy as np, glob, ast, openpyxl, shutil, pyodbc, random, datetime
 from openpyxl import Workbook
 from openpyxl import load_workbook
+from datetime import datetime
+
 
 def reading_input():
     
@@ -49,7 +52,7 @@ def reading_input():
         my_df = pd.read_sql(query, conn)
 
     else:
-        #reading the files in manaually from local storage
+        #reading the data in from CSVs manaually from local storage
         vs1 = pd.read_csv('/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/matrices/Vector save.csv')
         vs2 = pd.read_csv('/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/matrices/Vector save 2.csv')
         frames = [vs1,vs2]
@@ -85,7 +88,7 @@ def reading_input():
 
     return my_df
 
-def calculations(base_df):
+def calculations(base_df, sn, target):
     
     # Add numerical score based on a dictionary
     my_dict = {'0': 0,'A': 1, 'B': 2, 'B1': 3, 'B2': 4, 'B3': 5, 'C': 6, 'Null': -1}
@@ -125,20 +128,14 @@ def calculations(base_df):
     ### STATION UPGRADE ROUTINE
 
     #reading from the spreadsheet
-    st_cat_df = pd.read_excel(
-    '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00_clone.xlsm', 
-    sheet_name = "St_Cat", engine='openpyxl')
+    st_cat_df = pd.read_excel(target, sheet_name = "St_Cat", engine='openpyxl')
 
-    #dropping extras
-    #*TO CHANGE* if the sheet is resized and the table starts in the correct
-    st_cat_df.drop(index=0, inplace=True)
-    st_cat_df.drop(columns='Unnamed: 0', inplace=True)
-    st_cat_df.columns = st_cat_df.iloc[0]
-    st_cat_df.drop(index=1, inplace=True)
+    st_cat_df = st_cat_df.loc[:,~st_cat_df.columns.duplicated()].copy()
+
+
     #st_cat_df = df[['CRS Code','Station Name (MOIRA Name)','Category','Region']]
     st_cat_df.rename(columns={'CRS Code': 'CRS_Code', 'Station Name (MOIRA Name)': 'Station_Name'},inplace=True)
     #dropping duplicate of crs code
-    st_cat_df = st_cat_df.loc[:,~st_cat_df.columns.duplicated()].copy()
 
 
     # Import stations to be upgraded
@@ -181,10 +178,8 @@ def calculations(base_df):
             st_cat_df.loc[st_cat_df.CRS_Code == str(tlc), 'Category'] = new_category1
 
     #export back to csv
-    with pd.ExcelWriter("'/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00_clone.xlsm'", mode="a",engine="openpyxl",if_sheet_exists="replace",) as writer:
-        st_cat_df.to_excel(writer, sheet_name="new_St_Cat")
-
-
+    with pd.ExcelWriter(target, mode="a",engine="openpyxl",if_sheet_exists="replace",) as writer:
+        st_cat_df.to_excel(writer, sheet_name="St_Cat", index=False)
 
 
     # Update origin score
@@ -199,12 +194,33 @@ def calculations(base_df):
     # Concat the 2 categories together
     scenario_1['concat_categories'] = scenario_1.Origin_Category + scenario_1.Destination_Category
 
+    #Outputting the log into a text file 
+    output_to_log(upgrade_list, sn)
+
     return scenario_1
 
-def into_stepfree_spreadsheet(scenario_1):
+def output_to_log(upgrade_list, sn ):
     
-    #random scenario number for naming convention, to be replaced by input script number
-    sn = str(random.randint(100, 999))
+    now = datetime.now()
+    dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
+    
+    with open("/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/scenarios_output_log.txt", "a+") as file_object:
+        # Move read cursor to the start of file.
+        file_object.seek(0)
+        # If file is not empty then append '\n'
+        data = file_object.read(100)
+        if len(data) > 0 :
+            file_object.write("\n")
+        # Append text at the end of file
+        file_object.write("\n")
+        line = 'Scenario number: ' + sn + ' run at ' + dt_string
+        file_object.write(line)
+        file_object.write("\n")
+        file_object.write(str(upgrade_list))
+        file_object.write("\n")
+
+def into_stepfree_spreadsheet(scenario_1, target):
+    
 
     # We need to select the journeys where one end is accessible and the other is not.
     # Step 1: select jnys where at least 1 end is accessible
@@ -232,25 +248,10 @@ def into_stepfree_spreadsheet(scenario_1):
 
 
     #Save to CSVs
-    grouped_origin_df.to_csv('origin_grouped_By.csv')
-    grouped_destination_df.to_csv('destination_grouped_By.csv')
+    #grouped_origin_df.to_csv('origin_grouped_By.csv')
+    #grouped_destination_df.to_csv('destination_grouped_By.csv')
 
 
-
-
-
-
-    #defining the locations of the excel spreadsheets
-    excel_path = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00.xlsx'
-    excel_location = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/'
-
-    #this section here reads in the origin spreadsheet and then copies it and saves it as a clone
-
-    original = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00.xlsm'
-    target = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00_clone.xlsm'
-
-    #copying file files
-    shutil.copyfile(original, target)
 
     '''
     #the clone is then loaded into pandas directly with the sheet name defined
@@ -282,31 +283,44 @@ def into_stepfree_spreadsheet(scenario_1):
 
 
     #read in the workbook and then write and replace the sheets
-    with pd.ExcelWriter("/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case CSV WORK/Step Free Scoring_JDL_v3.00_clone.xlsx", mode="a",engine="openpyxl",if_sheet_exists="replace",) as writer:
-       grouped_origin_df.to_excel(writer, sheet_name="Inaccessible O Accessi D")
-       grouped_destination_df.to_excel(writer, sheet_name="Accessible O Inaccessi D") 
+    with pd.ExcelWriter(target, mode="a",engine="openpyxl",if_sheet_exists="replace",) as writer:
+       grouped_origin_df.to_excel(writer, sheet_name="Inaccessible O Accessi D", index=False)
+       grouped_destination_df.to_excel(writer, sheet_name="Accessible O Inaccessi D", index=False) 
 
 
-    #this is the group by function result is directly exported into the sheet
+#this is the group by function result is directly exported into the sheet
 
 
-    #get a list of stations missing in the dataframe but present in the spreadsheet
+#get a list of stations missing in the dataframe but present in the spreadsheet
 
-
+    
 
 
 
 def main():
+
+    #random scenario number for naming convention, to be replaced by input script number
+    sn = str(random.randint(100, 999))
+    
+    #this section here reads in the origin spreadsheet and then copies it and saves it as a clone
+
+    original = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00.xlsx'
+    target = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00_clone_'+sn+'.xlsx'
+
+    #copying file files
+    shutil.copyfile(original, target)
+
+
     #Initalising the base df through the inputs
     base_df = reading_input()
     print('Database loaded in successfully of shape: ', base_df.shape)
 
 
     # removing O-D pairs with 0 or null and categorising journeys 
-    scenario_1 = calculations(base_df)
+    scenario_1 = calculations(base_df, sn, target)
 
 
-    into_stepfree_spreadsheet(scenario_1)
+    into_stepfree_spreadsheet(scenario_1, target)
 
 
     
@@ -358,15 +372,7 @@ not_fully_acc = ['BB3',
  'CB']
 
 
- full_access = ['AA','AB1','B1B1','B1A']
-
-
-
-
-
-
+ full_access = ['AA','AB1','B1B1','B1A'
 
 
 '''
-
-
