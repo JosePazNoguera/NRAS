@@ -284,8 +284,8 @@ def into_stepfree_spreadsheet(scenario_1, target):
 
     #read in the workbook and then write and replace the sheets
     with pd.ExcelWriter(target, mode="a",engine="openpyxl",if_sheet_exists="replace",) as writer:
-       grouped_origin_df.to_excel(writer, sheet_name="Inaccessible O Accessi D", index=False)
-       grouped_destination_df.to_excel(writer, sheet_name="Accessible O Inaccessi D", index=False) 
+       grouped_origin_df.to_excel(writer, sheet_name="Inaccessible O Accessi D")
+       grouped_destination_df.to_excel(writer, sheet_name="Accessible O Inaccessi D") 
 
 
 #this is the group by function result is directly exported into the sheet
