@@ -36,12 +36,12 @@ from datetime import datetime
 def reading_input():
     
     #temporary variable to direct the code, when the access database is updated then we can remove
-    reading_from_access = False
+    reading_from_access = True
     
     if reading_from_access:
 
         #connect to the access database
-        conn = pyodbc.connect(r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:\Users\Kharesa-Kesa.Spencer\OneDrive - Arup\Projects\Network Rail Accessibility case\matrices\MOIRAOD.accdb;')
+        conn = pyodbc.connect(r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:\Users\jose.delapaznoguera\OneDrive - Arup\NRAS Secondment\MOIRAOD.accdb')
         '''
         cursor = conn.cursor()
         query = cursor.execute('select * from ODMatrix')
@@ -50,6 +50,7 @@ def reading_input():
         '''
         query = 'select * from ODMatrix'
         my_df = pd.read_sql(query, conn)
+        print(my_df.head(20))
 
     else:
         #reading the data in from CSVs manaually from local storage
@@ -61,35 +62,43 @@ def reading_input():
 
 
     #Merging the input and the spreadsheet data together, essentially updating the df
-    
-
-
-
 
     #missing values
 
     #list of the columns with nan values
     nan_cols = my_df.loc[:,my_df.isna().any(axis=0)]
 
-    #if there is only one column check it isnt region, region can be ignored - metadata
-    if len(nan_cols.columns) == 0:
-        if nan_cols.columns[0] == 'Region':
-            print('only region has empty rows, proceeding')
-            
-    #else drop all rows within the nan columns with empty rows        
-    else:
-        #if 'Total_Journeys' in nan_cols.columns:
-
-        #first does all rows with no data
-        my_df.dropna(axis=0,how='all',subset=nan_cols.columns)
-
-        #then does all rows with no data
-        my_df.dropna(axis=0,how='any',subset=nan_cols.columns)
+    # #if there is only one column check it isnt region, region can be ignored - metadata
+    # if len(nan_cols.columns) == 0:
+    #     if nan_cols.columns[0] == 'Region':
+    #         print('only region has empty rows, proceeding')
+    #
+    # #else drop all rows within the nan columns with empty rows
+    # else:
+    #     #if 'Total_Journeys' in nan_cols.columns:
+    #
+    #     #first does all rows with no data
+    #     my_df.dropna(axis=0,how='all',subset=nan_cols.columns)
+    #
+    #     #then does all rows with no data
+    #     my_df.dropna(axis=0,how='any',subset=nan_cols.columns)
 
     return my_df
 
 def calculations(base_df, sn, target):
-    
+
+    # Pull in the categories from All_stations
+    st_cat_df = pd.read_excel(target, sheet_name="St_Cat", engine='openpyxl')
+    st_cat_df = st_cat_df.loc[:,~st_cat_df.columns.duplicated()].copy()
+    st_cat_df.rename(columns={'CRS Code': 'CRS_Code', 'Station Name (MOIRA Name)': 'Station_Name'},inplace=True)
+
+    origin_category = pd.merge(base_df,st_cat_df[['CRS_Code','Including CP6 AfA']], how='left', left_on='Origin TLC', right_on='CRS_Code')
+    base_df['Origin_Category'] = origin_category['Including CP6 AfA']
+
+    destination_category = pd.merge(base_df, st_cat_df[['CRS_Code', 'Including CP6 AfA']], how='left', left_on='Destination TLC',
+                               right_on='CRS_Code')
+    base_df['Destination_Category'] = destination_category['Including CP6 AfA']
+    print(base_df.head(20))
     # Add numerical score based on a dictionary
     my_dict = {'0': 0,'A': 1, 'B': 2, 'B1': 3, 'B2': 4, 'B3': 5, 'C': 6, 'Null': -1}
     origin_score = base_df.Origin_Category.map(my_dict)
@@ -115,16 +124,14 @@ def calculations(base_df, sn, target):
     my_dict_2 = {1: 'A', 2: 'B', 3: 'B1', 4: 'B2', 5: 'B3', 6: 'C'}
     jny_category = base_df.jny_score.map(my_dict_2)
     base_df['jny_category'] = jny_category
-    # print(base_df.tail(10))
+    # Outputting the log into a text file
+    upgrade_list = 0
+    output_to_log(upgrade_list, sn)
 
-    #base_df.info()
-    v1 = base_df.groupby("jny_category").Total_Journeys.sum()
-    # print(v1)
-    #print(type(v1))
-    #print(base_df.tail(10))
+    return base_df
 
 
-
+def station_upgrade(base_df):
     ### STATION UPGRADE ROUTINE
 
     #reading from the spreadsheet
@@ -132,11 +139,9 @@ def calculations(base_df, sn, target):
 
     st_cat_df = st_cat_df.loc[:,~st_cat_df.columns.duplicated()].copy()
 
-
     #st_cat_df = df[['CRS Code','Station Name (MOIRA Name)','Category','Region']]
     st_cat_df.rename(columns={'CRS Code': 'CRS_Code', 'Station Name (MOIRA Name)': 'Station_Name'},inplace=True)
     #dropping duplicate of crs code
-
 
     # Import stations to be upgraded
     input_path = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/matrices/Input template.csv'
@@ -154,12 +159,9 @@ def calculations(base_df, sn, target):
     #  2   New_Category  6 non-null      object
     # dtypes: object(3)
 
-
     # Create a copy of the base data frame
     scenario_1 = base_df.copy()
-    # print(type(scenario_1))
 
-    # Next steps:
     # 1. find the stations to be upgraded.
     for tlc in upgrade_list.TLC:
         if str(tlc) == 'nan':
@@ -193,9 +195,6 @@ def calculations(base_df, sn, target):
 
     # Concat the 2 categories together
     scenario_1['concat_categories'] = scenario_1.Origin_Category + scenario_1.Destination_Category
-
-    #Outputting the log into a text file 
-    output_to_log(upgrade_list, sn)
 
     return scenario_1
 
@@ -295,15 +294,15 @@ def into_stepfree_spreadsheet(scenario_1, target):
 
 
 
-def main():
+def main(upgrade_st = 0):
 
     #random scenario number for naming convention, to be replaced by input script number
     sn = str(random.randint(100, 999))
     
     #this section here reads in the origin spreadsheet and then copies it and saves it as a clone
 
-    original = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00.xlsx'
-    target = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00_clone_'+sn+'.xlsx'
+    original = r'C:\Users\jose.delapaznoguera\OneDrive - Arup\NRAS Secondment\Automation\Step Free Scoring_JDL_v3.00.xlsx'
+    target = r'C:\Users\jose.delapaznoguera\OneDrive - Arup\NRAS Secondment\Automation\Step Free Scoring_JDL_v3.00_clone_'+sn+'.xlsx'
 
     #copying file files
     shutil.copyfile(original, target)
@@ -313,10 +312,11 @@ def main():
     base_df = reading_input()
     print('Database loaded in successfully of shape: ', base_df.shape)
 
-
-    # removing O-D pairs with 0 or null and categorising journeys 
-    scenario_1 = calculations(base_df, sn, target)
-
+    if upgrade_st == 1:
+        # removing O-D pairs with 0 or null and categorising journeys
+        scenario_1 = calculations(station_upgrade(base_df), sn, target)
+    else:
+        scenario_1 = calculations(base_df, sn, target)
 
     into_stepfree_spreadsheet(scenario_1, target)
 
