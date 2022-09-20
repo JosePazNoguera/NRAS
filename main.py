@@ -50,7 +50,6 @@ def reading_input():
         '''
         query = 'select * from ODMatrix'
         my_df = pd.read_sql(query, conn)
-        print(my_df.head(20))
 
     else:
         # reading the data in from CSVs manaually from local storage
@@ -130,8 +129,9 @@ def calculations(base_df, sn, target):
     # Outputting the log into a text file
     upgrade_list = 0
     output_to_log(upgrade_list, sn)
+    scenario_1 = base_df.copy()
 
-    return base_df
+    return scenario_1
 
 
 def station_upgrade(base_df):
@@ -206,7 +206,7 @@ def output_to_log(upgrade_list, sn):
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
 
     with open(
-            "/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/scenarios_output_log.txt",
+            r'C:\Users\jose.delapaznoguera\OneDrive - Arup\NRAS Secondment\Automation\Inputs\scenarios_output_log.txt',
             "a+") as file_object:
         # Move read cursor to the start of file.
         file_object.seek(0)
@@ -314,6 +314,7 @@ def main(upgrade_st=0):
         scenario_1 = calculations(base_df, sn, target)
 
     into_stepfree_spreadsheet(scenario_1, target)
+
 
 
 '''
