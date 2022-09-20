@@ -50,6 +50,10 @@ def reading_input():
         '''
         query = 'select * from ODMatrix'
         my_df = pd.read_sql(query, conn)
+        my_df.columns = [c.replace(' ', '_') for c in my_df.columns]
+        my_df.replace(to_replace = ["XBF","XBS","XCB","XCC","XCD","XCN","XDC","XDK","XEB","XEF","XFB","XFK","XFS","XBG","XGG","XHB","XHF","XLP","XMS","XNW","XPF","XPL","XPN","XPS","XRD","XSE","XTD","XTR","ZWF","XWG","XWH","XWR","XWT"],
+                      value = ["BDI","BIT","CBW","COL","CDF","ECR","DCH","DKG","EBT","ENF","FNB","FKK","FKC","GBI","GLC","HLC","HFN","LIV","MDE","NNG","PFM","PLY","PNE","PMS","RDG","SOC","TYL","TNN","WKF","WGN","WHD","WAC","WOF"],
+                      inplace=True)
 
     else:
         # reading the data in from CSVs manaually from local storage
@@ -82,24 +86,43 @@ def reading_input():
     #     #then does all rows with no data
     #     my_df.dropna(axis=0,how='any',subset=nan_cols.columns)
 
+    original = r'C:\Users\jose.delapaznoguera\OneDrive - Arup\NRAS Secondment\Automation\Step Free Scoring_JDL_v3.00.xlsx'
+
+    # Pull in the categories from All_stations
+    st_cat_df = pd.read_excel(original, sheet_name="St_Cat", engine='openpyxl')
+    st_cat_df = st_cat_df.loc[:, ~st_cat_df.columns.duplicated()].copy()
+    st_cat_df.rename(columns={'CRS Code': 'CRS_Code', 'Station Name (MOIRA Name)': 'Station_Name'}, inplace=True)
+
+    origin_category = pd.merge(my_df, st_cat_df[['CRS_Code', 'Including CP6 AfA']], how='left', left_on='Origin_TLC',
+                               right_on='CRS_Code')
+    my_df['Origin_Category'] = origin_category['Including CP6 AfA']
+
+    destination_category = pd.merge(my_df, st_cat_df[['CRS_Code', 'Including CP6 AfA']], how='left', left_on='Destination_TLC',
+                                    right_on='CRS_Code')
+    my_df['Destination_Category'] = destination_category['Including CP6 AfA']
+
+    # Replace categories for station groups in big cities
+    my_df.loc[my_df.Origin_TLC.isin(['London Terminals','Manchester CTLZ', 'Birmingham Stns','XBH','XMC']),'Origin_Category'] = "A"
+    my_df.loc[my_df.Destination_TLC.isin(['London Terminals','Manchester CTLZ', 'Birmingham Stns','XBH','XMC']),'Destination_Category'] = "A"
+
+    # Calculate the total number of journeys and insert a new column
+    my_df["Total_Journeys"] = my_df['STDJOURNEYS'] + my_df['1stJOURNEYS']
+
+    # my_df.info()
+    ##   Column                Non-Null Count    Dtype
+    # ---  ------                --------------    -----
+    #  0   Origin_TLC            1429134 non-null  object
+    #  1   Destination_TLC       1429134 non-null  object
+    #  2   STDJOURNEYS           1429134 non-null  float64
+    #  3   1stJOURNEYS           1429134 non-null  float64
+    #  4   Origin_Category       1411996 non-null  object
+    #  5   Destination_Category  1410128 non-null  object
+    #  6   Total_Journeys        1429134 non-null  float64
+
     return my_df
 
 
 def calculations(base_df, sn, target):
-    # Pull in the categories from All_stations
-    st_cat_df = pd.read_excel(target, sheet_name="St_Cat", engine='openpyxl')
-    st_cat_df = st_cat_df.loc[:, ~st_cat_df.columns.duplicated()].copy()
-    st_cat_df.rename(columns={'CRS Code': 'CRS_Code', 'Station Name (MOIRA Name)': 'Station_Name'}, inplace=True)
-
-    origin_category = pd.merge(base_df, st_cat_df[['CRS_Code', 'Including CP6 AfA']], how='left', left_on='Origin TLC',
-                               right_on='CRS_Code')
-    base_df['Origin_Category'] = origin_category['Including CP6 AfA']
-
-    destination_category = pd.merge(base_df, st_cat_df[['CRS_Code', 'Including CP6 AfA']], how='left',
-                                    left_on='Destination TLC',
-                                    right_on='CRS_Code')
-    base_df['Destination_Category'] = destination_category['Including CP6 AfA']
-    print(base_df.head(20))
     # Add numerical score based on a dictionary
     my_dict = {'0': 0, 'A': 1, 'B': 2, 'B1': 3, 'B2': 4, 'B3': 5, 'C': 6, 'Null': -1}
     origin_score = base_df.Origin_Category.map(my_dict)
@@ -130,6 +153,9 @@ def calculations(base_df, sn, target):
     upgrade_list = 0
     output_to_log(upgrade_list, sn)
     scenario_1 = base_df.copy()
+
+    # Concat the 2 categories together
+    scenario_1['concat_categories'] = scenario_1.Origin_Category + scenario_1.Destination_Category
 
     return scenario_1
 
@@ -315,6 +341,7 @@ def main(upgrade_st=0):
 
     into_stepfree_spreadsheet(scenario_1, target)
 
+    return scenario_1
 
 
 '''
