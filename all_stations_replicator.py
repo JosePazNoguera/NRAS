@@ -17,6 +17,25 @@ from openpyxl import load_workbook
 from datetime import datetime
 
 
+def get_orr_step_free_category(search_value):
+    
+    orr = {'B':'Bottom', 'B2':'Bottom', 'B3':'Middle', 'C':'Top'}
+
+    return orr[search_value]
+
+def get_updated_stations():
+    input_path = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/matrices/Input template.csv'
+    input_df = pd.read_csv(input_path)
+
+    return input_df
+
+def get_mobility_isolation_matrix(search_value):
+
+    e={'TopTop' : 1, 'TopMiddle' : 1, 'TopBottom': 2, 'MiddleTop':1, 'MiddleMiddle':2, 'MiddleBottom':3, 'BottomTop':2, 'BottomMiddle':3, 'BottomBottom':3 }
+
+    return e[search_value]
+
+
 def get_new_categories_set_jrnys(base_df):
 
 
@@ -81,8 +100,7 @@ def get_new_categories_set_jrnys(base_df):
     #this method does all the calculating the new categories
 
     # Import stations to be upgraded
-    input_path = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/matrices/Input template.csv'
-    upgrade_list = pd.read_csv(input_path)
+    upgrade_list = get_updated_stations()
 
 
 
@@ -196,14 +214,92 @@ def get_new_categories_set_jrnys(base_df):
     base_df['2019_Connectivity_Matrix_Outcome'] = matrix_outcome_list_2
     base_df['Connectivity_and_Journeys_Matrix_Outcome'] = base_df['2019_Unlocked_Journeys_Matrix_Outcome']+base_df['2019_Connectivity_Matrix_Outcome']
 
-    #column u
+    #column u not done
 
     
     return base_df
 
+def set_mobility_isolation_score(all_stations_df, alt_any_df):
 
+    #COLUMN V
+
+    #Matrix
+    for index, row in all_stations_df.iterrows():
+        
+        if row['Inaccessible_(1_if_not_Step_Free_Cat._A_or_B1)'] == 1:
+            osfc = str(row['ORR_Step_Free_Category'])
+            
+            all_stations_df.loc[all_stations_df['Unique_Code']==str(row['Unique_Code']), 'Mobility_Score'] = get_orr_step_free_category(osfc)
+
+        else:
+            all_stations_df.loc[all_stations_df['Unique_Code']==str(row['Unique_Code']), 'Mobility_Score'] = None
+
+
+
+
+    #getting the input stations
+    input_df = get_updated_stations()
+    list_of_changed_stns = list(input_df['TLC'])
+
+    #COLUMN Z
+    #creating a blank dataframe with the same columns as the alt_any sheet table
+    stns_df = pd.DataFrame(columns=['Station_Code', 'Station_Name', 'Region', 'ID2', 'Station__2'])
+
+    #looping through the list of inputted stations
+    #for every station thats in the in the dataframe
+    #check if this is the first time the dataframe is being appended (through length) if not then 
+    #append all the rows where the station code equals the one being looped through
+    for station in list_of_changed_stns:
+
+        if station in alt_any_df.values:
+
+            if len(stns_df) == 0 :
+                 stns_df = alt_any_df[alt_any_df.Station_Code == station]
+
+            else:
+                temp_df = alt_any_df[alt_any_df.Station_Code == station]
+                stns_df = pd.concat([stns_df, temp_df], axis=0,)
+
+    #a list of all the station codes of the stations within 20 of all the newly upgraded stations (using set to remove duplicates)
+    target_stns = list(set(stns_df.ID2))
+
+    #now we pivot over top the all station sheet to assign bottom to all these stations 
+
+    for target in target_stns:
+
+        if target in all_stations_df.values:
+            
+            all_stations_df.loc[all_stations_df.Unique_Code == target, 'Revisited_Isolation_score'] = 'Bottom'
 
     
+    #COLUMN Y
+
+    all_stations_df['Mobility/Isolation'] = all_stations_df['Original_Isolation_Score'] + all_stations_df['Revisited_Isolation_score']
+
+    #Matrix
+    for index, row in all_stations_df.iterrows():
+        mob = str(row['Mobility/Isolation'])
+
+        if mob == 'nan':
+            continue
+        else:
+            all_stations_df.loc[all_stations_df['Mobility/Isolation']==mob, 'Isolation_and_Current_Access_Matrix_Outcome'] = get_mobility_isolation_matrix(mob)
+
+    
+
+    return all_stations_df
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 def main():
@@ -211,10 +307,16 @@ def main():
 
     path_of_spreadsh = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00.xlsx'
     base_df  = pd.read_excel(path_of_spreadsh, sheet_name = "All Stations", header=2 , usecols="B:AS", engine='openpyxl')
+    alt_any  = pd.read_excel(path_of_spreadsh, sheet_name = "Alt_Any_20", header=4 , usecols="B:F", engine='openpyxl')
+
     base_df.columns = [c.replace(' ','_') for c in base_df.columns]
+    alt_any.columns = [c.replace(' ','_') for c in alt_any.columns]
+
 
 
     updated_cats_and_jrnys = get_new_categories_set_jrnys(base_df)
+
+    updated_mobility_and_isolation = set_mobility_isolation_score(updated_cats_and_jrnys, alt_any)
 
 
 
