@@ -61,7 +61,7 @@ def reading_input():
         my_df = my_df[(my_df['STDJOURNEYS']>=0) & (my_df['1stJOURNEYS']>=0)]
         # ignore jnys where the origin and the destination coincide
         my_df = my_df[my_df['Origin_TLC'] != my_df['Destination_TLC']]
-        print(my_df.head(25))
+        # print(my_df.head(25))
 
     else:
         # reading the data in from CSVs manaually from local storage
@@ -127,8 +127,8 @@ def reading_input():
     #  5   Destination_Category  1410128 non-null  object
     #  6   Total_Journeys        1429134 non-null  float64
 
-    print(my_df.info())
-    print(my_df.head())
+    # print(my_df.info())
+    # print(my_df.head())
 
     return my_df
 
@@ -141,17 +141,17 @@ def calculations(base_df, sn, target):
     base_df['origin_score'] = origin_score
     base_df['destination_score'] = destination_score
 
-    print(base_df.info())
-    print(base_df.head())
+    # print(base_df.info())
+    # print(base_df.head())
 
     # Remove OD pairs where the score is 0 or Null. Save the number of removed records for traceability
     dropped_origins = base_df.origin_score[base_df.origin_score < 1].count()
     dropped_destinations = base_df.destination_score[base_df.destination_score < 1].count()
     base_df = base_df.drop(base_df[base_df.origin_score < 1].index)
     base_df = base_df.drop(base_df[base_df.destination_score < 1].index)
-
-    base_df.info()
-    print(base_df.dtypes)
+    # print(base_df.head(15))
+    # base_df.info()
+    # print(base_df.dtypes)
 
     print(
         f"A total of {dropped_origins:n} origins and {dropped_destinations:n} destinations were invalid and not included in the analysis.")
@@ -171,8 +171,8 @@ def calculations(base_df, sn, target):
     # Concat the 2 categories together
     scenario_1['concat_categories'] = scenario_1.Origin_Category + scenario_1.Destination_Category
 
-    print(scenario_1.info())
-    print(scenario_1.head())
+    # print(scenario_1.info())
+    print(scenario_1.loc[scenario_1.Origin_TLC == 'AAP', :])
     return scenario_1
 
 
@@ -278,17 +278,18 @@ def into_stepfree_spreadsheet(scenario_1, target):
                                             (scenario_1_clean.concat_categories != 'B1A') &
                                             (scenario_1_clean.concat_categories != 'B1B1')]
 
+
     # grouping by TLC and cat and totalling journeys, setting all Cat A as None
     grouped_origin_df = (scenario_1_clean.groupby(["Origin_TLC", "Origin_Category"])["Total_Journeys"].sum()).to_frame()
     grouped_origin_df.reset_index(inplace=True)
-    # grouped_origin_df.loc[grouped_origin_df.Origin_Category == 'A', 'Total_Journeys'] = None
-    # grouped_origin_df.loc[grouped_origin_df.Origin_Category == 'B1', 'Total_Journeys'] = None
+    grouped_origin_df.loc[grouped_origin_df.Origin_Category == 'A', 'Total_Journeys'] = None
+    grouped_origin_df.loc[grouped_origin_df.Origin_Category == 'B1', 'Total_Journeys'] = None
 
     grouped_destination_df = (
         scenario_1_clean.groupby(["Destination_TLC", "Destination_Category"])["Total_Journeys"].sum()).to_frame()
     grouped_destination_df.reset_index(inplace=True)
-    # grouped_destination_df.loc[grouped_destination_df.Destination_Category == 'A', 'Total_Journeys'] = None
-    # grouped_destination_df.loc[grouped_destination_df.Destination_Category == 'B1', 'Total_Journeys'] = None
+    grouped_destination_df.loc[grouped_destination_df.Destination_Category == 'A', 'Total_Journeys'] = None
+    grouped_destination_df.loc[grouped_destination_df.Destination_Category == 'B1', 'Total_Journeys'] = None
 
     # Save to CSVs
     # grouped_origin_df.to_csv('origin_grouped_By.csv')
@@ -354,7 +355,7 @@ def main(upgrade_st=0):
     else:
         scenario_1 = calculations(base_df, sn, target)
 
-    into_stepfree_spreadsheet(scenario_1, target)
+    # into_stepfree_spreadsheet(scenario_1, target)
 
     return scenario_1
 
