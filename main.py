@@ -26,12 +26,15 @@ The aim of this file is to:
 2. classify the journeys based on the O/D station categories
 """
 
-from operator import index
-import pandas as pd, numpy as np, glob, ast, openpyxl, shutil, pyodbc, random, datetime
-from openpyxl import Workbook
-from openpyxl import load_workbook
+import pandas as pd, numpy as np, shutil, pyodbc, random, datetime
+
 from datetime import datetime
 
+### Global variables
+my_dict = {'0': 0, 'A': 1, 'B': 2, 'B1': 3, 'B2': 4, 'B3': 5, 'C': 6, 'Null': -1}
+my_dict_2 = {1: 'A', 2: 'B', 3: 'B1', 4: 'B2', 5: 'B3', 6: 'C'}
+
+input_path = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/matrices/Input template.csv'
 
 def reading_input():
     # temporary variable to direct the code, when the access database is updated then we can remove
@@ -54,6 +57,11 @@ def reading_input():
         my_df.replace(to_replace = ["XBF","XBS","XCB","XCC","XCD","XCN","XDC","XDK","XEB","XEF","XFB","XFK","XFS","XBG","XGG","XHB","XHF","XLP","XMS","XNW","XPF","XPL","XPN","XPS","XRD","XSE","XTD","XTR","ZWF","XWG","XWH","XWR","XWT"],
                       value = ["BDI","BIT","CBW","COL","CDF","ECR","DCH","DKG","EBT","ENF","FNB","FKK","FKC","GBI","GLC","HLC","HFN","LIV","MDE","NNG","PFM","PLY","PNE","PMS","RDG","SOC","TYL","TNN","WKF","WGN","WHD","WAC","WOF"],
                       inplace=True)
+        # ignore negative journeys
+        my_df = my_df[(my_df['STDJOURNEYS']>=0) & (my_df['1stJOURNEYS']>=0)]
+        # ignore jnys where the origin and the destination coincide
+        my_df = my_df[my_df['Origin_TLC'] != my_df['Destination_TLC']]
+        print(my_df.head(25))
 
     else:
         # reading the data in from CSVs manaually from local storage
@@ -119,24 +127,31 @@ def reading_input():
     #  5   Destination_Category  1410128 non-null  object
     #  6   Total_Journeys        1429134 non-null  float64
 
+    print(my_df.info())
+    print(my_df.head())
+
     return my_df
 
 
 def calculations(base_df, sn, target):
+
     # Add numerical score based on a dictionary
-    my_dict = {'0': 0, 'A': 1, 'B': 2, 'B1': 3, 'B2': 4, 'B3': 5, 'C': 6, 'Null': -1}
     origin_score = base_df.Origin_Category.map(my_dict)
     destination_score = base_df.Destination_Category.map(my_dict)
     base_df['origin_score'] = origin_score
     base_df['destination_score'] = destination_score
+
+    print(base_df.info())
+    print(base_df.head())
 
     # Remove OD pairs where the score is 0 or Null. Save the number of removed records for traceability
     dropped_origins = base_df.origin_score[base_df.origin_score < 1].count()
     dropped_destinations = base_df.destination_score[base_df.destination_score < 1].count()
     base_df = base_df.drop(base_df[base_df.origin_score < 1].index)
     base_df = base_df.drop(base_df[base_df.destination_score < 1].index)
-    # base_df.info()
-    # print(base_df.dtypes)
+
+    base_df.info()
+    print(base_df.dtypes)
 
     print(
         f"A total of {dropped_origins:n} origins and {dropped_destinations:n} destinations were invalid and not included in the analysis.")
@@ -146,7 +161,6 @@ def calculations(base_df, sn, target):
 
     # Add the list as a new column to the existing dataframe
     base_df['jny_score'] = jny_score
-    my_dict_2 = {1: 'A', 2: 'B', 3: 'B1', 4: 'B2', 5: 'B3', 6: 'C'}
     jny_category = base_df.jny_score.map(my_dict_2)
     base_df['jny_category'] = jny_category
     # Outputting the log into a text file
@@ -157,6 +171,8 @@ def calculations(base_df, sn, target):
     # Concat the 2 categories together
     scenario_1['concat_categories'] = scenario_1.Origin_Category + scenario_1.Destination_Category
 
+    print(scenario_1.info())
+    print(scenario_1.head())
     return scenario_1
 
 
@@ -173,7 +189,6 @@ def station_upgrade(base_df):
     # dropping duplicate of crs code
 
     # Import stations to be upgraded
-    input_path = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/matrices/Input template.csv'
     upgrade_list = pd.read_csv(input_path)
 
     # Transform the list into a dataframe
@@ -256,6 +271,7 @@ def into_stepfree_spreadsheet(scenario_1, target):
                                       | (scenario_1.Destination_Category == 'A') | (
                                                   scenario_1.Destination_Category == 'B1')]
 
+    print(scenario_1_clean.head(15))
     # Step 2: remove jnys where both ends are accessible
     scenario_1_clean = scenario_1_clean.loc[(scenario_1_clean.concat_categories != 'AA') &
                                             (scenario_1_clean.concat_categories != 'AB1') &
@@ -265,14 +281,14 @@ def into_stepfree_spreadsheet(scenario_1, target):
     # grouping by TLC and cat and totalling journeys, setting all Cat A as None
     grouped_origin_df = (scenario_1_clean.groupby(["Origin_TLC", "Origin_Category"])["Total_Journeys"].sum()).to_frame()
     grouped_origin_df.reset_index(inplace=True)
-    grouped_origin_df.loc[grouped_origin_df.Origin_Category == 'A', 'Total_Journeys'] = None
-    grouped_origin_df.loc[grouped_origin_df.Origin_Category == 'B1', 'Total_Journeys'] = None
+    # grouped_origin_df.loc[grouped_origin_df.Origin_Category == 'A', 'Total_Journeys'] = None
+    # grouped_origin_df.loc[grouped_origin_df.Origin_Category == 'B1', 'Total_Journeys'] = None
 
     grouped_destination_df = (
         scenario_1_clean.groupby(["Destination_TLC", "Destination_Category"])["Total_Journeys"].sum()).to_frame()
     grouped_destination_df.reset_index(inplace=True)
-    grouped_destination_df.loc[grouped_destination_df.Destination_Category == 'A', 'Total_Journeys'] = None
-    grouped_destination_df.loc[grouped_destination_df.Destination_Category == 'B1', 'Total_Journeys'] = None
+    # grouped_destination_df.loc[grouped_destination_df.Destination_Category == 'A', 'Total_Journeys'] = None
+    # grouped_destination_df.loc[grouped_destination_df.Destination_Category == 'B1', 'Total_Journeys'] = None
 
     # Save to CSVs
     # grouped_origin_df.to_csv('origin_grouped_By.csv')
@@ -320,7 +336,6 @@ def into_stepfree_spreadsheet(scenario_1, target):
 def main(upgrade_st=0):
     # random scenario number for naming convention, to be replaced by input script number
     sn = str(random.randint(100, 999))
-
     # this section here reads in the origin spreadsheet and then copies it and saves it as a clone
 
     original = r'C:\Users\jose.delapaznoguera\OneDrive - Arup\NRAS Secondment\Automation\Step Free Scoring_JDL_v3.00.xlsx'
@@ -395,6 +410,6 @@ not_fully_acc = ['BB3',
 
 
 '''
-
-if __name__ == "__main__":
-    main()
+#
+# if __name__ == "__main__":
+#     main()
