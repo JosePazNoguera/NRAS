@@ -351,7 +351,7 @@ def main():
 
     updated_columns = blanking_rows(updated_mobility_and_isolation)
 
-
+    updated_columns.head(20)
 
 
 
