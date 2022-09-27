@@ -19,7 +19,7 @@ from datetime import datetime
 
 def get_orr_step_free_category(search_value):
     
-    orr = {'B':'Bottom', 'B2':'Bottom', 'B3':'Middle', 'C':'Top'}
+    orr = {'B': 'Bottom', 'B2': 'Bottom', 'B3': 'Middle', 'C': 'Top'}
 
     return orr[search_value]
 
