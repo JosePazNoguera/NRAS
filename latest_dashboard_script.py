@@ -5,7 +5,7 @@ This script will attempt to replicate the actions of the spreadsheet generating 
 
 # from asyncio.unix_events import _UnixSelectorEventLoop
 # from email import header
-from macpath import split
+# from macpath import split
 from operator import index
 from matplotlib.pyplot import polar
 import pandas as pd, numpy as np, glob, ast, openpyxl, shutil, pyodbc, random, datetime
@@ -428,7 +428,7 @@ def into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_d
     #this method is to write to the new spreadsheet clones
     
     #Input_name
-    scenario_number = 2
+    scenario_number = str(2)
 
 
     #clones spreadsheet as to not affect the original when writing to the sheet
@@ -464,11 +464,11 @@ def into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_d
 
     #setting all Cat A as None
 
-    grouped_origin_df.loc[grouped_origin_df.Origin_Category=='A', 'Total_Journeys'] = None
-    grouped_origin_df.loc[grouped_origin_df.Origin_Category=='B1', 'Total_Journeys'] = None 
+    grouped_origin_df.loc[grouped_origin_df.AfAOrigin =='A', 'Total_Journeys'] = None
+    grouped_origin_df.loc[grouped_origin_df.AfAOrigin =='B1', 'Total_Journeys'] = None
 
-    grouped_destination_df.loc[grouped_destination_df.Destination_Category=='A', 'Total_Journeys'] = None 
-    grouped_destination_df.loc[grouped_destination_df.Destination_Category=='B1', 'Total_Journeys'] = None 
+    grouped_destination_df.loc[grouped_destination_df.AfADest =='A', 'Total_Journeys'] = None
+    grouped_destination_df.loc[grouped_destination_df.AfADest =='B1', 'Total_Journeys'] = None
 
     #read in the workbook and then write and replace the sheets
     with pd.ExcelWriter(target, mode="a",engine="openpyxl",if_sheet_exists="replace",) as writer:
@@ -491,3 +491,6 @@ updated_mobility_and_isolation = set_mobility_isolation_score(updated_cats_and_j
 final_df = blanking_rows(updated_mobility_and_isolation)
 
 final_df
+
+# into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_df)
+
