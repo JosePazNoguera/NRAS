@@ -27,7 +27,7 @@ def get_connectivity_journeys_matrix(search_value):
 
 
 def get_updated_stations():
-    input_path = r'https://networkrail-my.sharepoint.com/:x:/r/personal/kadams5_networkrail_co_uk/Documents/Arup/National%20Rail%20Accessibility%20Strategy/04%20Working%20folder/05%20Dev/Input%20template.csv'
+    input_path = r'C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Inputs/Input template.csv'
     input_df = pd.read_csv(input_path)
 
     return input_df
@@ -110,32 +110,19 @@ def get_list_col():
 
 
 def input_OD_Matrix():
+
     # inputs
-    # temporary variable to direct the code, when the access database is updated then we can remove
-    reading_from_access = True
-
-    if reading_from_access:
-
-        # connect to the access database
-        conn = pyodbc.connect(
-            r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=https://networkrail-my.sharepoint.com/:u:/r/personal/kadams5_networkrail_co_uk/Documents/Arup/National%20Rail%20Accessibility%20Strategy/02%20Step%20Free%20Data%20Analysis/05%20MOIRA/MOIRAOD.accdb;')
-        '''
-        cursor = conn.cursor()
-        query = cursor.execute('select * from ODMatrix')
-        for row in cursor.fetchall():
-            print (row)
-        '''
-        query = 'select * from ODMatrixAfA'
-        OD_df = pd.read_sql(query, conn)
-
-    else:
-        # reading the data in from CSVs manaually from local storage
-        vs1 = pd.read_csv(
-            r'C:\Users\Kharesa-Kesa.Spencer\OneDrive - Arup\Projects\Network Rail Accessibility case\matrices\Vector save.csv')
-        vs2 = pd.read_csv(
-            r'C:\Users\Kharesa-Kesa.Spencer\OneDrive - Arup\Projects\Network Rail Accessibility case\matrices\Vector save 2.csv')
-        frames = [vs1, vs2]
-        OD_df = pd.concat(frames, ignore_index=True)
+    # connect to the access database
+    conn = pyodbc.connect(
+        r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Inputs/MOIRAOD (1).accdb;')
+    '''
+    cursor = conn.cursor()
+    query = cursor.execute('select * from ODMatrix')
+    for row in cursor.fetchall():
+        print (row)
+    '''
+    query = 'select * from ODMatrixAfA'
+    OD_df = pd.read_sql(query, conn)
 
     return OD_df
 
@@ -431,7 +418,7 @@ def blanking_rows(updated_mobility_and_isolation):
     return updated_mobility_and_isolation
 
 
-path_of_spreadsh = r'https://networkrail-my.sharepoint.com/:x:/r/personal/kadams5_networkrail_co_uk/Documents/Arup/National%20Rail%20Accessibility%20Strategy/04%20Working%20folder/05%20Dev/Step%20Free%20Scoring_JDL_v3.00.xlsx'
+path_of_spreadsh = r'C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v3.00.xlsx'
 base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", header=2, usecols="B:AS", engine='openpyxl')
 alt_any = pd.read_excel(path_of_spreadsh, sheet_name="Alt_Any_20", header=4, usecols="B:F", engine='openpyxl')
 

@@ -36,35 +36,17 @@ from datetime import datetime
 def reading_input():
     
     #temporary variable to direct the code, when the access database is updated then we can remove
-    reading_from_access = False
-    
-    if reading_from_access:
 
-        #connect to the access database
-        conn = pyodbc.connect('Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:\Users\Kharesa-Kesa.Spencer\OneDrive - Arup\Projects\Network Rail Accessibility case\matrices\MOIRAOD.accdb;')
-        '''
-        cursor = conn.cursor()
-        query = cursor.execute('select * from ODMatrix')
-        for row in cursor.fetchall():
-            print (row)
-        '''
-        query = 'select * from ODMatrix'
-        my_df = pd.read_sql(query, conn)
-
-    else:
-        #reading the data in from CSVs manaually from local storage
-        vs1 = pd.read_csv('/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/matrices/Vector save.csv')
-        vs2 = pd.read_csv('/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/matrices/Vector save 2.csv')
-        frames = [vs1,vs2]
-        my_df = pd.concat(frames, ignore_index=True)
-
-
-
-    #Merging the input and the spreadsheet data together, essentially updating the df
-    
-
-
-
+    #connect to the access database
+    conn = pyodbc.connect('Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=;C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Inputs/MOIRAOD (1).accdb')
+    '''
+    cursor = conn.cursor()
+    query = cursor.execute('select * from ODMatrix')
+    for row in cursor.fetchall():
+        print (row)
+    '''
+    query = 'select * from ODMatrix'
+    my_df = pd.read_sql(query, conn)
 
     #missing values
 
@@ -139,7 +121,7 @@ def calculations(base_df, sn, target):
 
 
     # Import stations to be upgraded
-    input_path = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/matrices/Input template.csv'
+    input_path = 'C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Inputs/Input template.csv'
     upgrade_list = pd.read_csv(input_path)
 
     # Transform the list into a dataframe
@@ -204,7 +186,7 @@ def output_to_log(upgrade_list, sn ):
     now = datetime.now()
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
     
-    with open("/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/scenarios_output_log.txt", "a+") as file_object:
+    with open("C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/scenarios_output_log.txt", "a+") as file_object:
         # Move read cursor to the start of file.
         file_object.seek(0)
         # If file is not empty then append '\n'
@@ -303,8 +285,8 @@ def main():
 
     #this section here reads in the origin spreadsheet and then copies it and saves it as a clone
 
-    original = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00.xlsx'
-    target = '/Users/kharesa-kesa.spencer/Library/CloudStorage/OneDrive-Arup/Projects/Network Rail Accessibility case/CSV WORK/Step Free Scoring_JDL_v3.00_clone_'+sn+'.xlsx'
+    original = 'C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v3.00.xlsx'
+    target = 'C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v3.00_clone_'+sn+'.xlsx'
 
     #copying file files
     shutil.copyfile(original, target)

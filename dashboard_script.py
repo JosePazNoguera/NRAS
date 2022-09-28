@@ -68,7 +68,7 @@ v1 = df.groupby("jny_category").Total_Journeys.sum()
 
 
 # Import stations to be upgraded
-input_path = r"\Users\Kharesa-Kesa.Spencer\OneDrive - Arup\Projects\Network Rail Accessibility case\matrices\Input template.csv"
+input_path = r"C:\Users\jose.delapaznoguera\OneDrive - Arup\NRAS Secondment\Automation\Inputs\Input template.csv"
 upgrade_list = pd.read_csv(input_path)
 
 # Transform the list into a dataframe
@@ -112,4 +112,4 @@ df['concat_categories'] = df.AfAOrigin + df.AfADest
 #dropping for the powerbi
 df.drop(axis=1,columns=['origin_score', 'destination_score', 'jny_score', 'jny_category'], inplace=True)
 
-new_ODMatrix = df
+New_ODMatrix = df
