@@ -428,7 +428,7 @@ def into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_d
     #this method is to write to the new spreadsheet clones
     
     #Input_name
-    scenario_number = get_scenario_num()
+    scenario_number = 2
 
 
     #clones spreadsheet as to not affect the original when writing to the sheet
