@@ -149,12 +149,12 @@ def map_input_stations(OD_df, base_df):
     OD_df['destination_score'] = destination_score
 
     # Remove OD pairs where the score is 0 or Null. Save the number of removed records for traceability
-    dropped_origins = OD_df.origin_score[OD_df.origin_score < 1].count()
-    dropped_destinations = OD_df.destination_score[OD_df.destination_score < 1].count()
-    OD_df = OD_df.drop(OD_df[OD_df.origin_score < 1].index)
-    OD_df = OD_df.drop(OD_df[OD_df.destination_score < 1].index)
+    dropped_origins = len(OD_df[(OD_df.origin_score < 1) | (OD_df.origin_score.isna())])
+    dropped_destinations = len(OD_df[(OD_df.destination_score < 1) | (OD_df.destination_score.isna())])
+    OD_df = OD_df.drop(OD_df[(OD_df.origin_score < 1) | (OD_df.origin_score.isna())].index)
+    OD_df = OD_df.drop(OD_df[(OD_df.destination_score < 1) | (OD_df.destination_score.isna())].index)
 
-    # print(f"A total of {dropped_origins:n} origins and {dropped_destinations:n} destinations were invalid and not included in the analysis.")
+    print(f"A total of {dropped_origins:n} origins and {dropped_destinations:n} destinations were invalid and not included in the analysis.")
 
     # Categorize the journeys by looking at the maximum numerical score of the origin and destination stations
     jny_score = np.maximum(OD_df.origin_score, OD_df.destination_score)
@@ -167,8 +167,11 @@ def map_input_stations(OD_df, base_df):
     OD_df['Total_Journeys'] = OD_df['STDJOURNEYS'] + OD_df['1stJOURNEYS']
     # print(base_df.tail(10))
 
+    ## TEST
+    OD_df.isna().sum()
+
     # base_df.info()
-    v1 = OD_df.groupby("jny_category").Total_Journeys.sum()
+    #v1 = OD_df.groupby("jny_category").Total_Journeys.sum()
     # print(v1)
     # print(type(v1))
     # print(base_df.tail(10))
@@ -225,12 +228,12 @@ def map_input_stations(OD_df, base_df):
             continue
 
         if str(code) in grouped_origin_df.values:
-            total_jo = grouped_origin_df.loc[grouped_origin_df.AfAOrigin == str(code), 'Total_Journeys'].item()
+            total_jo = grouped_origin_df.loc[grouped_origin_df.OriginTLC == str(code), 'Total_Journeys'].item()
             base_df.loc[base_df.Unique_Code == str(code), '2019_Journeys_from_an_accessible_origin'] = total_jo
 
         if str(code) in grouped_destination_df.values:
             total_jd = grouped_destination_df.loc[
-                grouped_destination_df.AfADest == str(code), 'Total_Journeys'].item()
+                grouped_destination_df.DestinationTLC == str(code), 'Total_Journeys'].item()
             base_df.loc[base_df.Unique_Code == str(code), '2019_Journeys_to_an_accessible_destination'] = total_jd
 
     return base_df
@@ -328,7 +331,7 @@ def get_new_categories_set_jrnys(base_df):
     for index, row in base_df.iterrows():
         mob = str(row['Connectivity_and_Journeys_Matrix_Outcome'])
 
-        if mob == 'nan':
+        if mob == 'nan' or mob == '':
             continue
         else:
             base_df.loc[base_df[
@@ -430,8 +433,8 @@ alt_any = pd.read_excel(path_of_spreadsh, sheet_name="Alt_Any_20", header=4, use
 base_df.columns = [c.replace(' ', '_') for c in base_df.columns]
 alt_any.columns = [c.replace(' ', '_') for c in alt_any.columns]
 
-# updated_cats_and_jrnys = get_new_categories_set_jrnys(base_df)
+updated_cats_and_jrnys = get_new_categories_set_jrnys(base_df)
 #
-# updated_mobility_and_isolation = set_mobility_isolation_score(updated_cats_and_jrnys, alt_any)
+updated_mobility_and_isolation = set_mobility_isolation_score(updated_cats_and_jrnys, alt_any)
 #
-# final_df = blanking_rows(updated_mobility_and_isolation)
+final_df = blanking_rows(updated_mobility_and_isolation)
