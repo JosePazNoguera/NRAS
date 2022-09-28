@@ -27,11 +27,11 @@ target = r"\Users\Kharesa-Kesa.Spencer\OneDrive - Arup\Projects\Network Rail Acc
 shutil.copyfile(original, target)
 
 
-#reading the data in from CSVs manaually from local storage
-vs1 = pd.read_csv(r"\Users\Kharesa-Kesa.Spencer\OneDrive - Arup\Projects\Network Rail Accessibility case\matrices\Vector save.csv")
-vs2 = pd.read_csv(r"\Users\Kharesa-Kesa.Spencer\OneDrive - Arup\Projects\Network Rail Accessibility case\matrices\Vector save 2.csv")
-frames = [vs1,vs2]
-df = pd.concat(frames, ignore_index=True)
+# #reading the data in from CSVs manaually from local storage
+# vs1 = pd.read_csv(r"\Users\Kharesa-Kesa.Spencer\OneDrive - Arup\Projects\Network Rail Accessibility case\matrices\Vector save.csv")
+# vs2 = pd.read_csv(r"\Users\Kharesa-Kesa.Spencer\OneDrive - Arup\Projects\Network Rail Accessibility case\matrices\Vector save 2.csv")
+# frames = [vs1,vs2]
+# df = pd.concat(frames, ignore_index=True)
 
 
 # Add numerical score based on a dictionary
