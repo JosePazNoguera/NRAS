@@ -27,7 +27,7 @@ def get_connectivity_journeys_matrix(search_value):
 
 
 def get_updated_stations():
-    input_path = r'C:\Users\jose.delapaznoguera\OneDrive - Arup\NRAS Secondment\Automation\Inputs\Input template.csv'
+    input_path = r'https://networkrail-my.sharepoint.com/:x:/r/personal/kadams5_networkrail_co_uk/Documents/Arup/National%20Rail%20Accessibility%20Strategy/04%20Working%20folder/05%20Dev/Input%20template.csv'
     input_df = pd.read_csv(input_path)
 
     return input_df
@@ -118,7 +118,7 @@ def input_OD_Matrix():
 
         # connect to the access database
         conn = pyodbc.connect(
-            r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:\Users\jose.delapaznoguera\OneDrive - Arup\NRAS Secondment\Automation\Inputs\MOIRAOD (1).accdb;')
+            r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=https://networkrail-my.sharepoint.com/:u:/r/personal/kadams5_networkrail_co_uk/Documents/Arup/National%20Rail%20Accessibility%20Strategy/02%20Step%20Free%20Data%20Analysis/05%20MOIRA/MOIRAOD.accdb;')
         '''
         cursor = conn.cursor()
         query = cursor.execute('select * from ODMatrix')
@@ -211,6 +211,10 @@ def map_input_stations(OD_df, base_df):
     OD_df.jny_category = OD_df.jny_score.map(my_dict_2)
     # Concat the 2 categories together
     OD_df['concat_categories'] = OD_df.AfAOrigin + OD_df.AfADest
+
+    New_ODMatrix = OD_df
+    New_ODMatrix.drop(axis=1,columns=['origin_score', 'destination_score', 'jny_score', 'jny_category'], inplace=True)
+
     # dataframes where only the origin or the destination are accessible
     OD_df_ass_origin = OD_df.loc[(OD_df.AfAOrigin == 'A') | (OD_df.AfAOrigin == 'B1')]
     OD_df_ass_destination = OD_df.loc[(OD_df.AfADest == 'A') | (OD_df.AfADest == 'B1')]
@@ -221,6 +225,7 @@ def map_input_stations(OD_df, base_df):
     grouped_destination_df = (
         OD_df_ass_destination.groupby(["DestinationTLC", "AfADest"])["Total_Journeys"].sum()).to_frame()
     grouped_destination_df.reset_index(inplace=True)
+
 
     # Placing the total journey grouped values into
     for code in base_df.Unique_Code:
@@ -426,7 +431,7 @@ def blanking_rows(updated_mobility_and_isolation):
     return updated_mobility_and_isolation
 
 
-path_of_spreadsh = r'C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v3.00.xlsx'
+path_of_spreadsh = r'https://networkrail-my.sharepoint.com/:x:/r/personal/kadams5_networkrail_co_uk/Documents/Arup/National%20Rail%20Accessibility%20Strategy/04%20Working%20folder/05%20Dev/Step%20Free%20Scoring_JDL_v3.00.xlsx'
 base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", header=2, usecols="B:AS", engine='openpyxl')
 alt_any = pd.read_excel(path_of_spreadsh, sheet_name="Alt_Any_20", header=4, usecols="B:F", engine='openpyxl')
 
