@@ -12,6 +12,8 @@ Access database:
 Step-free scoring spreadsheet:
 path_of_spreadsh = r'https://networkrail-my.sharepoint.com/:x:/r/personal/kadams5_networkrail_co_uk/Documents/Arup/National%20Rail%20Accessibility%20Strategy/04%20Working%20folder/05%20Dev/Step%20Free%20Scoring_JDL_v3.00.xlsx'
 
+Dev folder
+dev_folder = r'https://networkrail-my.sharepoint.com/:f:/r/personal/kadams5_networkrail_co_uk/Documents/Arup/National%20Rail%20Accessibility%20Strategy/04%20Working%20folder/05%20Dev'
 '''
 
 # from asyncio.unix_events import _UnixSelectorEventLoop
@@ -442,8 +444,8 @@ def into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_d
     scenario_number = str(2)
 
     # clones spreadsheet as to not affect the original when writing to the sheet
-    original = r'C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v3.00.xlsx'
-    target = r'C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v3.00' + scenario_number + '.xlsx'
+    original = r'https://networkrail-my.sharepoint.com/:x:/r/personal/kadams5_networkrail_co_uk/Documents/Arup/National%20Rail%20Accessibility%20Strategy/04%20Working%20folder/05%20Dev/Step%20Free%20Scoring_JDL_v3.00.xlsx'
+    target = r'https://networkrail-my.sharepoint.com/:f:/r/personal/kadams5_networkrail_co_uk/Documents/Arup/National%20Rail%20Accessibility%20Strategy/04%20Working%20folder/05%20Dev/Step Free Scoring_JDL_v3.00_sc' + scenario_number + '.xlsx'
 
     # copying file files
     shutil.copyfile(original, target)
