@@ -5,10 +5,10 @@ This script will attempt to replicate the actions of the spreadsheet generating 
 
 # from asyncio.unix_events import _UnixSelectorEventLoop
 # from email import header
-# from macpath import split
+#from macpath import split
 from operator import index
 from matplotlib.pyplot import polar
-import pandas as pd, numpy as np, glob, ast, openpyxl, shutil, pyodbc, random, datetime
+import pandas as pd, numpy as np, glob, ast, openpyxl as xl, shutil, pyodbc, random, datetime
 from openpyxl import Workbook
 from openpyxl import load_workbook
 from datetime import datetime
@@ -28,13 +28,13 @@ def get_connectivity_journeys_matrix(search_value):
 
 
 def get_updated_stations():
-    input_path = r'C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Inputs/Input template.csv'
-    
-    split_path = input_path.split('/')
-    
+    input_path = r"C:\Users\Kharesa-Kesa.Spencer\OneDrive - Arup\Projects\Network Rail Accessibility case\matrices\Input template.csv"    
     input_df = pd.read_csv(input_path)
 
-    return input_df
+    scenario_tag = str(input_df.Scenario_Name.iat[0])
+    input_df.drop(columns='Scenario_Name')
+
+    return input_df, scenario_tag
 
 
 def get_mobility_isolation_matrix(search_value):
@@ -42,7 +42,6 @@ def get_mobility_isolation_matrix(search_value):
          'BottomTop': 2, 'BottomMiddle': 3, 'BottomBottom': 3}
 
     return e[search_value]
-
 
 def get_list_col():
     list_cols = ['Station_Name', 'Unique_Code', 'Station_Facility_Owner',
@@ -112,25 +111,29 @@ def get_list_col():
 
     return three
 
+def get_DfT_Num_Cat(search_value):
+
+    if search_value.isna():
+        return None
+
+    else:
+
+        e = {'A':6, 'B':5, 'C':4, 'D':3, 'E':2, 'F':1, 'NaN': None}
+        return e[search_value]
 
 def input_OD_Matrix():
     # inputs
     # connect to the access database
     conn = pyodbc.connect(
-        r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Inputs/MOIRAOD (1).accdb;')
-    '''
-    cursor = conn.cursor()
-    query = cursor.execute('select * from ODMatrix')
-    for row in cursor.fetchall():
-        print (row)
-    '''
+        r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:\Users\Kharesa-Kesa.Spencer\OneDrive - Arup\Projects\Network Rail Accessibility case\matrices\MOIRAOD.accdb;')
+
     query = 'select * from ODMatrixAfA'
     OD_df = pd.read_sql(query, conn)
 
     return OD_df
 
 
-def map_input_stations(OD_df, base_df):
+def map_input_stations(OD_df, base_df, input_df):
     # Add numerical score based on a dictionary
     my_dict = {'0': 0, 'A': 1, 'B': 2, 'B1': 3, 'B2': 4, 'B3': 5, 'C': 6, 'Null': -1}
     origin_score = OD_df.AfAOrigin.map(my_dict)
@@ -169,7 +172,7 @@ def map_input_stations(OD_df, base_df):
     # this method does all the calculating the new categories
 
     # Import stations to be upgraded
-    upgrade_list = get_updated_stations()
+    upgrade_list = input_df
 
     # In anticipation of the new score the columm is set to None
     base_df['Inaccessible_(1_if_not_Step_Free_Cat._A_or_B1)'] = None
@@ -234,11 +237,11 @@ def map_input_stations(OD_df, base_df):
     return base_df, grouped_origin_df, grouped_destination_df, New_ODMatrix
 
 
-def get_new_categories_set_jrnys(base_df):
+def get_new_categories_set_jrnys(base_df, input_df):
     # set the OD matrix, either from the access database or from the csv
     OD_df = input_OD_Matrix()
 
-    base_df, grouped_origin_df, grouped_destination_df, New_ODMatrix = map_input_stations(OD_df, base_df)
+    base_df, grouped_origin_df, grouped_destination_df, New_ODMatrix = map_input_stations(OD_df, base_df, input_df)
 
     # so now the base df and the od df both have updated station categories from the input template
     # next is adding the column codes and the journey stats, mapping from the OD_df to the base df
@@ -336,7 +339,7 @@ def get_new_categories_set_jrnys(base_df):
     return base_df, grouped_origin_df, grouped_destination_df, New_ODMatrix
 
 
-def set_mobility_isolation_score(updated_cats_and_jrnys, alt_any_df):
+def set_mobility_isolation_score(updated_cats_and_jrnys, alt_any_df, input_df):
     # COLUMN V
 
     # Matrix
@@ -353,7 +356,6 @@ def set_mobility_isolation_score(updated_cats_and_jrnys, alt_any_df):
                 updated_cats_and_jrnys['Unique_Code'] == str(row['Unique_Code']), 'Mobility_Score'] = None
 
     # getting the input stations
-    input_df = get_updated_stations()
     list_of_changed_stns = list(input_df['TLC'])
 
     # COLUMN Z
@@ -418,28 +420,39 @@ def blanking_rows(updated_mobility_and_isolation):
             if row['Inaccessible_(1_if_not_Step_Free_Cat._A_or_B1)'] == 0:
                 updated_mobility_and_isolation.loc[updated_mobility_and_isolation['Inaccessible_(1_if_not_Step_Free_Cat._A_or_B1)'] == 0, col]=None
 
+    updated_mobility_and_isolation['Dft_Category'] = updated_mobility_and_isolation['Dft_Category'].fillna('')
+
     return updated_mobility_and_isolation
 
 
-def into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_df):
+def into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_tag):
 
     #Final_df is the all_stations sheet here with the new updated station cateogries in in
     #grouped origin and destination are grouped dfs of the total journeys grouped by station
     #this method is to write to the new spreadsheet clones
-    
-    #Input_name
-    scenario_number = str(2)
 
 
     #clones spreadsheet as to not affect the original when writing to the sheet
-    original = r'C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v3.00.xlsx'
-    target = r'C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v3.00'+scenario_number+'.xlsx'
+    original = path_of_spreadsh
+    clone = r"C:\Users\Kharesa-Kesa.Spencer\OneDrive - Arup\Projects\Network Rail Accessibility case\CSV WORK\Step Free Scoring_JDL_v3.00_clone.xlsx"
+    target = r"C:\Users\Kharesa-Kesa.Spencer\OneDrive - Arup\Projects\Network Rail Accessibility case\CSV WORK\Step Free Scoring_JDL_v3.00"+scenario_tag+'.xlsx'
 
     #copying file files
-    shutil.copyfile(original, target)
+    shutil.copyfile(original, clone)
+
+    #Slimming down the clone
+    workbook=xl.load_workbook(clone)
+    sheet_names=workbook.sheetnames
+    sheet_names.remove('Dashboard')
+
+
+    for sheet in sheet_names:
+        del workbook[sheet]
+
+    workbook.save(target)
 
     #reading from the spreadsheet
-    st_cat_df = pd.read_excel(target, sheet_name = "St_Cat", engine='openpyxl')
+    st_cat_df = pd.read_excel(clone, sheet_name = "St_Cat", engine='openpyxl')
     st_cat_df.rename(columns={'CRS Code': 'CRS_Code', 'Station Name (MOIRA Name)': 'Station_Name'},inplace=True)
 
     st_cat_df = st_cat_df.loc[:,~st_cat_df.columns.duplicated()].copy()
@@ -456,41 +469,68 @@ def into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_d
             new_category = final_df.loc[final_df.Unique_Code == code, 'ORR_Step_Free_Category'].item()
             st_cat_df.loc[st_cat_df.CRS_Code == str(code), 'Including CP6 AfA'] = new_category
 
-    #export back to csv
-    with pd.ExcelWriter(target, mode="a",engine="openpyxl",if_sheet_exists="replace",) as writer:
-        st_cat_df.to_excel(writer, sheet_name="St_Cat", index=False)
-
-
-
+    
     #setting all Cat A as None
 
-    grouped_origin_df.loc[grouped_origin_df.AfAOrigin =='A', 'Total_Journeys'] = None
-    grouped_origin_df.loc[grouped_origin_df.AfAOrigin =='B1', 'Total_Journeys'] = None
+    grouped_origin_df.loc[grouped_origin_df.AfAOrigin=='A', 'Total_Journeys'] = None
+    grouped_origin_df.loc[grouped_origin_df.AfAOrigin=='B1', 'Total_Journeys'] = None 
 
-    grouped_destination_df.loc[grouped_destination_df.AfADest =='A', 'Total_Journeys'] = None
-    grouped_destination_df.loc[grouped_destination_df.AfADest =='B1', 'Total_Journeys'] = None
-
-    #read in the workbook and then write and replace the sheets
-    with pd.ExcelWriter(target, mode="a",engine="openpyxl",if_sheet_exists="replace",) as writer:
+    grouped_destination_df.loc[grouped_destination_df.AfADest=='A', 'Total_Journeys'] = None 
+    grouped_destination_df.loc[grouped_destination_df.AfADest=='B1', 'Total_Journeys'] = None 
+    
+    #export back to csv
+    with pd.ExcelWriter(target, mode="a",engine="openpyxl") as writer:
+        
+        final_df.to_excel(writer, sheet_name="All Stations", index=False)
+        st_cat_df.to_excel(writer, sheet_name="St_Cat", index=False)
         grouped_origin_df.to_excel(writer, sheet_name="Inaccessible O Accessi D")
-        grouped_destination_df.to_excel(writer, sheet_name="Accessible O Inaccessi D") 
+        grouped_destination_df.to_excel(writer, sheet_name="Accessible O Inaccessi D")
+        
+    #done
+
+
+def make_kepler_input(final_df, path_of_spreadsh, scenario_tag):
+
+    #naming this dataframe kepler as it will serve as the stations.csv file for kepler
+    kepler = pd.read_excel(path_of_spreadsh, sheet_name="Coordinates", header=2, usecols="B:F", engine='openpyxl')
+
+    #running over the final_df dafeframe and adding the new categories and other columns to it 
+    for code in final_df.Unique_Code:
+        if str(code) == 'nan':
+            continue
+        if code in kepler.values:
+
+            # Update category. It is necessary to use the .item() method to the Series ,
+            kepler.loc[kepler.CRSCode == str(code), 'Step Free Category'] = final_df.loc[final_df.Unique_Code == code, 'ORR_Step_Free_Category'].item()
+            #kepler.loc[kepler.CRSCode == str(code), 'DfT Category']  = final_df.loc[final_df.Unique_Code == code, 'Dft_Category'].item()
+            kepler.loc[kepler.CRSCode == str(code), 'Journeys Unlocked']  = final_df.loc[final_df.Unique_Code == code, '2019_Total_Unlocked_Journeys'].item()
+            kepler.loc[kepler.CRSCode == str(code), 'Connectivity Rank']  = final_df.loc[final_df.Unique_Code == code, '2019_Connectivity_Rank'].item()
+            kepler.loc[kepler.CRSCode == str(code), 'Isolation Score']  = final_df.loc[final_df.Unique_Code == code, 'Isolation_and_Current_Access_Matrix_Outcome'].item()
+            kepler.loc[kepler.CRSCode == str(code), 'Final Matrix Outcome']  = final_df.loc[final_df.Unique_Code == code, 'Final_Outcome'].item()
+            #kepler.loc[kepler.CRSCode == str(code), 'DfT Category A to F']  = get_DfT_Num_Cat(final_df.loc[final_df.Unique_Code == code, 'Dft_Category'].item())
+
+    #Exporting the file as a csv
+    csv_outpath = 'Stations_sc_'+scenario_tag
+    kepler.to_csv(csv_outpath)
 
 
 
-path_of_spreadsh =  r'C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v3.00.xlsx'
+#Pseudo-Main
+
+path_of_spreadsh =  r"C:\Users\Kharesa-Kesa.Spencer\OneDrive - Arup\Projects\Network Rail Accessibility case\CSV WORK\Step Free Scoring_JDL_v3.00.xlsx"
 base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", header=2, usecols="B:AS", engine='openpyxl')
 alt_any = pd.read_excel(path_of_spreadsh, sheet_name="Alt_Any_20", header=4, usecols="B:F", engine='openpyxl')
+input_df, scenario_tag = get_updated_stations()
 
 base_df.columns = [c.replace(' ', '_') for c in base_df.columns]
 alt_any.columns = [c.replace(' ', '_') for c in alt_any.columns]
 
-updated_cats_and_jrnys, grouped_origin_df, grouped_destination_df, New_ODMatrix = get_new_categories_set_jrnys(base_df)
+updated_cats_and_jrnys, grouped_origin_df, grouped_destination_df, New_ODMatrix = get_new_categories_set_jrnys(base_df, input_df)
 #
-updated_mobility_and_isolation = set_mobility_isolation_score(updated_cats_and_jrnys, alt_any)
+updated_mobility_and_isolation = set_mobility_isolation_score(updated_cats_and_jrnys, alt_any, input_df)
 #
 final_df = blanking_rows(updated_mobility_and_isolation)
 
-final_df
+into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_tag)
 
-# into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_df)
-
+make_kepler_input(final_df, path_of_spreadsh, scenario_tag)
