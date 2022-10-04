@@ -335,6 +335,9 @@ def get_new_categories_set_jrnys(base_df, input_df):
             base_df.loc[base_df[
                             'Connectivity_and_Journeys_Matrix_Outcome'] == mob, 'Connectivity_and_Journeys_Matrix_Outcome.1'] = get_connectivity_journeys_matrix(
                 mob)
+            
+    output_to_log(upgrade_list, sn)
+
 
     return base_df, grouped_origin_df, grouped_destination_df, New_ODMatrix
 
@@ -488,8 +491,27 @@ def into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_d
         
     #done
 
+def output_to_log(input_df, scenario_tag ):
+    
+    now = datetime.now()
+    dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
+    
+    with open(r"C:\Users\Kharesa-Kesa.Spencer\OneDrive - Arup\Projects\Network Rail Accessibility case\CSV WORK\scenarios_output_log.txt", "a+") as file_object:
+        # Move read cursor to the start of file.
+        file_object.seek(0)
+        # If file is not empty then append '\n'
+        data = file_object.read(100)
+        if len(data) > 0 :
+            file_object.write("\n")
+        # Append text at the end of file
+        file_object.write("\n")
+        line = 'Scenario number: ' + scenario_tag + ' run at ' + dt_string
+        file_object.write(line)
+        file_object.write("\n")
+        file_object.write(str(input_df))
+        file_object.write("\n")
 
-def make_kepler_input(final_df, path_of_spreadsh, scenario_tag):
+ def make_kepler_input(final_df, path_of_spreadsh, scenario_tag):
 
     #naming this dataframe kepler as it will serve as the stations.csv file for kepler
     kepler = pd.read_excel(path_of_spreadsh, sheet_name="Coordinates", header=2, usecols="B:F", engine='openpyxl')
@@ -522,6 +544,7 @@ base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", header=2, u
 alt_any = pd.read_excel(path_of_spreadsh, sheet_name="Alt_Any_20", header=4, usecols="B:F", engine='openpyxl')
 input_df, scenario_tag = get_updated_stations()
 
+
 base_df.columns = [c.replace(' ', '_') for c in base_df.columns]
 alt_any.columns = [c.replace(' ', '_') for c in alt_any.columns]
 
@@ -530,6 +553,8 @@ updated_cats_and_jrnys, grouped_origin_df, grouped_destination_df, New_ODMatrix 
 updated_mobility_and_isolation = set_mobility_isolation_score(updated_cats_and_jrnys, alt_any, input_df)
 #
 final_df = blanking_rows(updated_mobility_and_isolation)
+
+output_to_log(input_df, scenario_tag)
 
 into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_tag)
 
