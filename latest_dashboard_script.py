@@ -335,9 +335,7 @@ def get_new_categories_set_jrnys(base_df, input_df):
             base_df.loc[base_df[
                             'Connectivity_and_Journeys_Matrix_Outcome'] == mob, 'Connectivity_and_Journeys_Matrix_Outcome.1'] = get_connectivity_journeys_matrix(
                 mob)
-            
-    output_to_log(upgrade_list, sn)
-
+          
 
     return base_df, grouped_origin_df, grouped_destination_df, New_ODMatrix
 
