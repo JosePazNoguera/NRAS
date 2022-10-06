@@ -509,7 +509,7 @@ def output_to_log(input_df, scenario_tag ):
         file_object.write(str(input_df))
         file_object.write("\n")
 
- def make_kepler_input(final_df, path_of_spreadsh, scenario_tag):
+def make_kepler_input(final_df, path_of_spreadsh, scenario_tag):
 
     #naming this dataframe kepler as it will serve as the stations.csv file for kepler
     kepler = pd.read_excel(path_of_spreadsh, sheet_name="Coordinates", header=2, usecols="B:F", engine='openpyxl')
