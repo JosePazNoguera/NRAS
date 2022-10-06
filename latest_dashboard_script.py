@@ -538,7 +538,9 @@ def make_kepler_input(final_df, path_of_spreadsh, scenario_tag):
 #Pseudo-Main
 
 path_of_spreadsh =  r"C:\Users\Kharesa-Kesa.Spencer\OneDrive - Arup\Projects\Network Rail Accessibility case\CSV WORK\Step Free Scoring_JDL_v3.00.xlsx"
-base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", header=2, usecols="B:AS", engine='openpyxl')
+base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", engine='openpyxl')
+#with the option of selecting table from sheet 
+#base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", header=2, usecols="B:AS", engine='openpyxl')
 alt_any = pd.read_excel(path_of_spreadsh, sheet_name="Alt_Any_20", header=4, usecols="B:F", engine='openpyxl')
 input_df, scenario_tag = get_updated_stations()
 
