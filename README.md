@@ -60,4 +60,6 @@ def into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_d
 
 - `Final DF/All Stations_sc (PowerBi Table) ` A table generated from the xlsx file and the input csv, this table contains all the stations, their categories (including upgraded), accessibility flags, connectivity and journey data, mobility data and socio-economic data scorings. 
 
-- `Scenario Spreadsheets` Spreadsheet generated from the xlsx, input csv and the MOIRAOD file, the sheets `‘st_cat’`, `Inaccessible O Accessi D`, `Accessible O Inaccessi D` are all updated to relefect the new categories  
+- `Scenario Spreadsheets` Spreadsheet generated from the xlsx, input csv and the MOIRAOD file, the sheets `‘st_cat’`, `Inaccessible O Accessi D`, `Accessible O Inaccessi D` are all updated to relefect the new categories
+
+- An output log of the calculations that occured in that single run as a txt file
