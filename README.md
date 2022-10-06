@@ -7,7 +7,7 @@ The project is designed to use a collection of indicators to flag and calculate 
 
 This script is written and design to calculate scenario data relating to an upgrade or change in station categories allowing the user to run the code in PowerBi and view the new values in the KPIs dynamically. 
 
-Inputs:
+### Inputs:
 
 `Input template.csv` - this is a csv file containing the station codes and new category label of all stations to be upgraded in a given scenario, the input template represents a scenario 
 
