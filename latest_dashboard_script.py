@@ -28,11 +28,10 @@ def get_connectivity_journeys_matrix(search_value):
 
 
 def get_updated_stations():
-    input_path = r"C:\Users\Kharesa-Kesa.Spencer\OneDrive - Arup\Projects\Network Rail Accessibility case\matrices\Input template.csv"    
+    input_path = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Inputs/Input template.csv"
     input_df = pd.read_csv(input_path)
 
-    scenario_tag = str(input_df.Scenario_Name.iat[0])
-    input_df.drop(columns='Scenario_Name')
+    scenario_tag = 1
 
     return input_df, scenario_tag
 
@@ -44,60 +43,7 @@ def get_mobility_isolation_matrix(search_value):
     return e[search_value]
 
 def get_list_col():
-    list_cols = ['Station_Name', 'Unique_Code', 'Station_Facility_Owner',
-                 'Network_Rail_Region', 'ORR_Step_Free_Category', 'DfT_Category',
-                 'Inaccessible_(1_if_not_Step_Free_Cat._A_or_B1)',
-                 '2018/2019_ORR_Total_Entries/Exits_and_Interchange',
-                 '2019_Journeys_to_an_accessible_destination',
-                 '2019_Journeys_from_an_accessible_origin',
-                 '2019_Total_Unlocked_Journeys', '2019_Potential_Unlocked_Rank',
-                 '2019_Unlocked_Journeys_Percentile',
-                 '2019_Unlocked_Journeys_Matrix_Outcome',
-                 '2019_Connectivity_(count_of_stations_directly_served)',
-                 '2019_Connectivity_Rank', '2019_Connectivity_Percentile',
-                 '2019_Connectivity_Matrix_Outcome',
-                 'Connectivity_and_Journeys_Matrix_Outcome',
-                 'Connectivity_and_Journeys_Matrix_Outcome.1', 'Mobility_Score',
-                 'Isolation_(1_if_no_Cat_A_in_20_mins_drive_isochrone)',
-                 'Additional_Flags', 'Original_Isolation_Score',
-                 'Revisited_Isolation_score', 'Mobility/Isolation',
-                 'Isolation_and_Current_Access_Matrix_Outcome', 'Socioeconomic_Flags',
-                 'Socioeconomic_classification', 'Local_Impact_Score',
-                 'Local_Impact_Classification', 'Socioecon_/_Local_Impact',
-                 'Socioeconomic_/_Local_Matrix_outcome', 'Average_of_two_scores',
-                 'Score__without_modifier', 'Base_score_+_modifiers',
-                 'Score_with_modifier', 'Footfall_Modifier', 'Final_Outcome', 'Change',
-                 'Region_and_Final_Score', 'Journeys_and_Final_Score',
-                 'Region_and_Local_Factor', 'Score_Change']
-
-    one = ['Station_Name', 'Unique_Code', 'Station_Facility_Owner',
-           'Network_Rail_Region', 'ORR_Step_Free_Category', 'DfT_Category',
-           'Inaccessible_(1_if_not_Step_Free_Cat._A_or_B1)',
-           '2018/2019_ORR_Total_Entries/Exits_and_Interchange',
-           '2019_Journeys_to_an_accessible_destination',
-           '2019_Journeys_from_an_accessible_origin',
-           '2019_Total_Unlocked_Journeys', '2019_Potential_Unlocked_Rank',
-           '2019_Unlocked_Journeys_Percentile',
-           '2019_Unlocked_Journeys_Matrix_Outcome',
-           '2019_Connectivity_(count_of_stations_directly_served)',
-           '2019_Connectivity_Rank', '2019_Connectivity_Percentile']
-
-    two = ['Inaccessible_(1_if_not_Step_Free_Cat._A_or_B1)', '2019_Connectivity_Matrix_Outcome',
-           'Connectivity_and_Journeys_Matrix_Outcome',
-           'Connectivity_and_Journeys_Matrix_Outcome.1', 'Mobility_Score',
-           'Isolation_(1_if_no_Cat_A_in_20_mins_drive_isochrone)',
-           'Additional_Flags', 'Original_Isolation_Score',
-           'Revisited_Isolation_score', 'Mobility/Isolation',
-           'Isolation_and_Current_Access_Matrix_Outcome', 'Socioeconomic_Flags',
-           'Socioeconomic_classification', 'Local_Impact_Score',
-           'Local_Impact_Classification', 'Socioecon_/_Local_Impact',
-           'Socioeconomic_/_Local_Matrix_outcome', 'Average_of_two_scores',
-           'Score__without_modifier', 'Base_score_+_modifiers',
-           'Score_with_modifier', 'Footfall_Modifier', 'Final_Outcome', 'Change',
-           'Region_and_Final_Score', 'Journeys_and_Final_Score',
-           'Region_and_Local_Factor', 'Score_Change']
-
-    three = ['Isolation_(1_if_no_Cat_A_in_20_mins_drive_isochrone)',
+    col_names = ['Isolation_(1_if_no_Cat_A_in_20_mins_drive_isochrone)',
              'Additional_Flags', 'Original_Isolation_Score',
              'Revisited_Isolation_score', 'Mobility/Isolation',
              'Isolation_and_Current_Access_Matrix_Outcome', 'Socioeconomic_Flags',
@@ -109,7 +55,7 @@ def get_list_col():
              'Region_and_Final_Score', 'Journeys_and_Final_Score',
              'Region_and_Local_Factor', 'Score_Change']
 
-    return three
+    return col_names
 
 def get_DfT_Num_Cat(search_value):
 
@@ -125,9 +71,9 @@ def input_OD_Matrix():
     # inputs
     # connect to the access database
     conn = pyodbc.connect(
-        r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:\Users\Kharesa-Kesa.Spencer\OneDrive - Arup\Projects\Network Rail Accessibility case\matrices\MOIRAOD.accdb;')
+        r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Inputs/MOIRAOctober22.accdb;')
 
-    query = 'select * from ODMatrixAfA'
+    query = 'select * from JoinCodes'
     OD_df = pd.read_sql(query, conn)
 
     return OD_df
@@ -171,8 +117,16 @@ def map_input_stations(OD_df, base_df, input_df):
 
     # this method does all the calculating the new categories
 
-    # Import stations to be upgraded
-    upgrade_list = input_df
+    # Import stations to be upgraded depending on the scenario
+    upgrade_list = pd.DataFrame()
+    for scenario in input_df.columns:
+        if str(scenario_tag) in scenario:
+            j = 3 * scenario_tag - 2
+            upgrade_list['TLC'] = input_df.iloc[:, j]
+            upgrade_list['New_Category'] = input_df.iloc[:, j + 1]
+            upgrade_list.dropna(inplace=True)
+        else:
+            continue
 
     # In anticipation of the new score the columm is set to None
     base_df['Inaccessible_(1_if_not_Step_Free_Cat._A_or_B1)'] = None
@@ -335,7 +289,7 @@ def get_new_categories_set_jrnys(base_df, input_df):
             base_df.loc[base_df[
                             'Connectivity_and_Journeys_Matrix_Outcome'] == mob, 'Connectivity_and_Journeys_Matrix_Outcome.1'] = get_connectivity_journeys_matrix(
                 mob)
-          
+
 
     return base_df, grouped_origin_df, grouped_destination_df, New_ODMatrix
 
@@ -435,8 +389,8 @@ def into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_d
 
     #clones spreadsheet as to not affect the original when writing to the sheet
     original = path_of_spreadsh
-    clone = r"C:\Users\Kharesa-Kesa.Spencer\OneDrive - Arup\Projects\Network Rail Accessibility case\CSV WORK\Step Free Scoring_JDL_v3.00_clone.xlsx"
-    target = r"C:\Users\Kharesa-Kesa.Spencer\OneDrive - Arup\Projects\Network Rail Accessibility case\CSV WORK\Step Free Scoring_JDL_v3.00"+scenario_tag+'.xlsx'
+    clone = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v3.00_clone.xlsx"
+    target = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v3.00"+str(scenario_tag)+'.xlsx'
 
     #copying file files
     shutil.copyfile(original, clone)
@@ -470,30 +424,30 @@ def into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_d
             new_category = final_df.loc[final_df.Unique_Code == code, 'ORR_Step_Free_Category'].item()
             st_cat_df.loc[st_cat_df.CRS_Code == str(code), 'Including CP6 AfA'] = new_category
 
-    
+
     #setting all Cat A as None
 
     grouped_origin_df.loc[grouped_origin_df.AfAOrigin=='A', 'Total_Journeys'] = None
-    grouped_origin_df.loc[grouped_origin_df.AfAOrigin=='B1', 'Total_Journeys'] = None 
+    grouped_origin_df.loc[grouped_origin_df.AfAOrigin=='B1', 'Total_Journeys'] = None
 
-    grouped_destination_df.loc[grouped_destination_df.AfADest=='A', 'Total_Journeys'] = None 
-    grouped_destination_df.loc[grouped_destination_df.AfADest=='B1', 'Total_Journeys'] = None 
-    
+    grouped_destination_df.loc[grouped_destination_df.AfADest=='A', 'Total_Journeys'] = None
+    grouped_destination_df.loc[grouped_destination_df.AfADest=='B1', 'Total_Journeys'] = None
+
     #export back to csv
     with pd.ExcelWriter(target, mode="a",engine="openpyxl") as writer:
-        
+
         final_df.to_excel(writer, sheet_name="All Stations", index=False)
         st_cat_df.to_excel(writer, sheet_name="St_Cat", index=False)
         grouped_origin_df.to_excel(writer, sheet_name="Inaccessible O Accessi D")
         grouped_destination_df.to_excel(writer, sheet_name="Accessible O Inaccessi D")
-        
+
     #done
 
 def output_to_log(input_df, scenario_tag ):
-    
+
     now = datetime.now()
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
-    
+
     with open(r"C:\Users\Kharesa-Kesa.Spencer\OneDrive - Arup\Projects\Network Rail Accessibility case\CSV WORK\scenarios_output_log.txt", "a+") as file_object:
         # Move read cursor to the start of file.
         file_object.seek(0)
@@ -503,7 +457,7 @@ def output_to_log(input_df, scenario_tag ):
             file_object.write("\n")
         # Append text at the end of file
         file_object.write("\n")
-        line = 'Scenario number: ' + scenario_tag + ' run at ' + dt_string
+        line = 'Scenario number: ' + str(scenario_tag) + ' run at ' + dt_string
         file_object.write(line)
         file_object.write("\n")
         file_object.write(str(input_df))
@@ -514,7 +468,7 @@ def make_kepler_input(final_df, path_of_spreadsh, scenario_tag):
     #naming this dataframe kepler as it will serve as the stations.csv file for kepler
     kepler = pd.read_excel(path_of_spreadsh, sheet_name="Coordinates", header=2, usecols="B:F", engine='openpyxl')
 
-    #running over the final_df dafeframe and adding the new categories and other columns to it 
+    #running over the final_df dafeframe and adding the new categories and other columns to it
     for code in final_df.Unique_Code:
         if str(code) == 'nan':
             continue
@@ -530,14 +484,14 @@ def make_kepler_input(final_df, path_of_spreadsh, scenario_tag):
             #kepler.loc[kepler.CRSCode == str(code), 'DfT Category A to F']  = get_DfT_Num_Cat(final_df.loc[final_df.Unique_Code == code, 'Dft_Category'].item())
 
     #Exporting the file as a csv
-    csv_outpath = 'Stations_sc_'+scenario_tag
+    csv_outpath = 'Stations_sc_'+str(scenario_tag)
     kepler.to_csv(csv_outpath)
 
 
 
 #Pseudo-Main
 
-path_of_spreadsh =  r"C:\Users\Kharesa-Kesa.Spencer\OneDrive - Arup\Projects\Network Rail Accessibility case\CSV WORK\Step Free Scoring_JDL_v3.00.xlsx"
+path_of_spreadsh =  r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v3.00.xlsx"
 base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", engine='openpyxl')
 #with the option of selecting table from sheet 
 #base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", header=2, usecols="B:AS", engine='openpyxl')
