@@ -30,10 +30,19 @@ def get_connectivity_journeys_matrix(search_value):
 def get_updated_stations():
     input_path = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Inputs/Input template.csv"
     input_df = pd.read_csv(input_path)
+    scenario_tag = 2
+    # Import stations to be upgraded depending on the scenario
+    upgrade_list = pd.DataFrame()
+    for scenario in input_df.columns:
+        if str(scenario_tag) in scenario:
+            j = 3 * scenario_tag - 2
+            upgrade_list['TLC'] = input_df.iloc[:, j]
+            upgrade_list['New_Category'] = input_df.iloc[:, j + 1]
+            upgrade_list.dropna(inplace=True)
+        else:
+            continue
 
-    scenario_tag = 1
-
-    return input_df, scenario_tag
+    return upgrade_list, scenario_tag
 
 
 def get_mobility_isolation_matrix(search_value):
@@ -43,7 +52,7 @@ def get_mobility_isolation_matrix(search_value):
     return e[search_value]
 
 def get_list_col():
-    col_names = ['Isolation_(1_if_no_Cat_A_in_20_mins_drive_isochrone)',
+    three = ['Isolation_(1_if_no_Cat_A_in_20_mins_drive_isochrone)',
              'Additional_Flags', 'Original_Isolation_Score',
              'Revisited_Isolation_score', 'Mobility/Isolation',
              'Isolation_and_Current_Access_Matrix_Outcome', 'Socioeconomic_Flags',
@@ -55,7 +64,7 @@ def get_list_col():
              'Region_and_Final_Score', 'Journeys_and_Final_Score',
              'Region_and_Local_Factor', 'Score_Change']
 
-    return col_names
+    return three
 
 def get_DfT_Num_Cat(search_value):
 
@@ -117,16 +126,8 @@ def map_input_stations(OD_df, base_df, input_df):
 
     # this method does all the calculating the new categories
 
-    # Import stations to be upgraded depending on the scenario
-    upgrade_list = pd.DataFrame()
-    for scenario in input_df.columns:
-        if str(scenario_tag) in scenario:
-            j = 3 * scenario_tag - 2
-            upgrade_list['TLC'] = input_df.iloc[:, j]
-            upgrade_list['New_Category'] = input_df.iloc[:, j + 1]
-            upgrade_list.dropna(inplace=True)
-        else:
-            continue
+    # Import stations to be upgraded
+    upgrade_list = input_df
 
     # In anticipation of the new score the columm is set to None
     base_df['Inaccessible_(1_if_not_Step_Free_Cat._A_or_B1)'] = None
@@ -375,7 +376,7 @@ def blanking_rows(updated_mobility_and_isolation):
             if row['Inaccessible_(1_if_not_Step_Free_Cat._A_or_B1)'] == 0:
                 updated_mobility_and_isolation.loc[updated_mobility_and_isolation['Inaccessible_(1_if_not_Step_Free_Cat._A_or_B1)'] == 0, col]=None
 
-    updated_mobility_and_isolation['Dft_Category'] = updated_mobility_and_isolation['Dft_Category'].fillna('')
+    updated_mobility_and_isolation['DfT_Category'] = updated_mobility_and_isolation['DfT_Category'].fillna('')
 
     return updated_mobility_and_isolation
 
@@ -501,15 +502,15 @@ input_df, scenario_tag = get_updated_stations()
 
 base_df.columns = [c.replace(' ', '_') for c in base_df.columns]
 alt_any.columns = [c.replace(' ', '_') for c in alt_any.columns]
-
+#
 updated_cats_and_jrnys, grouped_origin_df, grouped_destination_df, New_ODMatrix = get_new_categories_set_jrnys(base_df, input_df)
-#
+# #
 updated_mobility_and_isolation = set_mobility_isolation_score(updated_cats_and_jrnys, alt_any, input_df)
-#
+# #
 final_df = blanking_rows(updated_mobility_and_isolation)
-
-output_to_log(input_df, scenario_tag)
-
-into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_tag)
-
-make_kepler_input(final_df, path_of_spreadsh, scenario_tag)
+#
+# output_to_log(input_df, scenario_tag)
+#
+# into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_tag)
+#
+# make_kepler_input(final_df, path_of_spreadsh, scenario_tag)
