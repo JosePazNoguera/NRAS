@@ -17,21 +17,42 @@ Inputs:
 
 ### What the script does: 
 
-```
-def spreadsheet():
-```
 
 1. The script reads in the step free scoring xlsx workbook and extracts the sheets `‘All_Stations, St_cat’` into dataframes 
+```
+base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", header=2, usecols="B:AS", engine='openpyxl')
+alt_any = pd.read_excel(path_of_spreadsh, sheet_name="Alt_Any_20", header=4, usecols="B:F", engine='openpyxl')
+input_df, scenario_tag = get_updated_stations()
+```
 
-2. The script then reads in the OD Matrix and the input csv; defined by the user before running, into data frames and updates the station categories by the values defined in the input csv 
+2. The script then reads in the OD Matrix and the input csv; defined by the user before running, into data frames and updates the station categories by the values defined in the input csv, this is done in the fuctions below
+```
+def input_OD_Matrix():
+
+def get_updated_stations():
+
+def map_input_stations(OD_df, base_df, input_df):
+```
 
 3. The number of unlocked journeys, potential rank and connectivity rank are computed, 
+```
+def get_new_categories_set_jrnys(base_df, input_df):
+```
 
 4. The mobility and isolation scores including the revisited isolation scores are calculated  
+```
+def set_mobility_isolation_score(updated_cats_and_jrnys, alt_any_df, input_df):
+```
 
 5. All the columns after mobility score in the dataframe made from All_Stations are blanked with empty values for stations that are accessible 
+```
+def blanking_rows(updated_mobility_and_isolation):
+```
 
 6. The total journeys are grouped by station and are outputted to a new spreadsheet with the updated categories listed 
+```
+def into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_tag):
+```
 
 ### Outputs: 
 
@@ -39,6 +60,4 @@ def spreadsheet():
 
 - `Final DF/All Stations_sc (PowerBi Table) ` A table generated from the xlsx file and the input csv, this table contains all the stations, their categories (including upgraded), accessibility flags, connectivity and journey data, mobility data and socio-economic data scorings. 
 
-### Scenario Spreadsheets 
-
-Spreadsheet generated from the xlsx, input csv and the MOIRAOD file, the sheets `‘st_cat’`, `Inaccessible O Accessi D`, `Accessible O Inaccessi D` are all updated to relefect the new categories  
+- `Scenario Spreadsheets` Spreadsheet generated from the xlsx, input csv and the MOIRAOD file, the sheets `‘st_cat’`, `Inaccessible O Accessi D`, `Accessible O Inaccessi D` are all updated to relefect the new categories  
