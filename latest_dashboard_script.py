@@ -15,12 +15,14 @@ from datetime import datetime
 
 
 def get_orr_step_free_category(search_value):
+    #returns the corresponding step free flag relating to the search value 
     orr = {'B': 'Bottom', 'B2': 'Bottom', 'B3': 'Middle', 'C': 'Top'}
 
     return orr[search_value]
 
 
 def get_connectivity_journeys_matrix(search_value):
+    #returns the corresponding connectivity journeys flag relating to the search value 
     e = {'TopTop': 1, 'TopMiddle': 2, 'TopBottom': 3, 'MiddleTop': 1, 'MiddleMiddle': 2, 'MiddleBottom': 3,
          'BottomTop': 2, 'BottomMiddle': 3, 'BottomBottom': 5}
 
@@ -28,6 +30,7 @@ def get_connectivity_journeys_matrix(search_value):
 
 
 def get_updated_stations():
+    #reads in the input template csv 
     input_path = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Inputs/Input template.csv"
     input_df = pd.read_csv(input_path)
     scenario_tag = 2
