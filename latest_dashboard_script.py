@@ -15,14 +15,12 @@ from datetime import datetime
 
 
 def get_orr_step_free_category(search_value):
-    #returns the corresponding step free flag relating to the search value 
     orr = {'B': 'Bottom', 'B2': 'Bottom', 'B3': 'Middle', 'C': 'Top'}
 
     return orr[search_value]
 
 
 def get_connectivity_journeys_matrix(search_value):
-    #returns the corresponding connectivity journeys flag relating to the search value 
     e = {'TopTop': 1, 'TopMiddle': 2, 'TopBottom': 3, 'MiddleTop': 1, 'MiddleMiddle': 2, 'MiddleBottom': 3,
          'BottomTop': 2, 'BottomMiddle': 3, 'BottomBottom': 5}
 
@@ -30,10 +28,9 @@ def get_connectivity_journeys_matrix(search_value):
 
 
 def get_updated_stations():
-    #reads in the input template csv 
-    input_path = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Inputs/Input template.csv"
+    input_path = r"C:/Users/kharesa-kesa.spencer/OneDrive - Arup/NRAS Secondment/Automation/Inputs/Input template.csv"
     input_df = pd.read_csv(input_path)
-    scenario_tag = 2
+    scenario_tag = 1
     # Import stations to be upgraded depending on the scenario
     upgrade_list = pd.DataFrame()
     for scenario in input_df.columns:
@@ -83,7 +80,7 @@ def input_OD_Matrix():
     # inputs
     # connect to the access database
     conn = pyodbc.connect(
-        r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Inputs/MOIRAOctober22.accdb;')
+        r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/kharesa-kesa.spencer/OneDrive - Arup/NRAS Secondment/Automation/Inputs/MOIRAOctober22.accdb;')
 
     query = 'select * from JoinCodes'
     OD_df = pd.read_sql(query, conn)
@@ -167,8 +164,8 @@ def map_input_stations(OD_df, base_df, input_df):
     New_ODMatrix.drop(axis=1,columns=['origin_score', 'destination_score', 'jny_score', 'jny_category'], inplace=True)
 
     # dataframes where only the origin or the destination are accessible
-    OD_df_ass_origin = OD_df.loc[(OD_df.AfAOrigin == 'A') | (OD_df.AfAOrigin == 'B1')]
-    OD_df_ass_destination = OD_df.loc[(OD_df.AfADest == 'A') | (OD_df.AfADest == 'B1')]
+    OD_df_ass_origin = OD_df
+    OD_df_ass_destination = OD_df
 
     grouped_origin_df = (OD_df_ass_origin.groupby(["OriginTLC", "AfAOrigin"])["Total_Journeys"].sum()).to_frame()
     grouped_origin_df.reset_index(inplace=True)
@@ -191,6 +188,14 @@ def map_input_stations(OD_df, base_df, input_df):
             total_jd = grouped_destination_df.loc[
                 grouped_destination_df.DestinationTLC == str(code), 'Total_Journeys'].item()
             base_df.loc[base_df.Unique_Code == str(code), '2019_Journeys_to_an_accessible_destination'] = total_jd
+
+    # setting all Cat A as None
+
+    grouped_origin_df.loc[grouped_origin_df.AfAOrigin == 'A', 'Total_Journeys'] = None
+    grouped_origin_df.loc[grouped_origin_df.AfAOrigin == 'B1', 'Total_Journeys'] = None
+
+    grouped_destination_df.loc[grouped_destination_df.AfADest == 'A', 'Total_Journeys'] = None
+    grouped_destination_df.loc[grouped_destination_df.AfADest == 'B1', 'Total_Journeys'] = None
 
     return base_df, grouped_origin_df, grouped_destination_df, New_ODMatrix
 
@@ -388,31 +393,28 @@ def into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_d
 
     #Final_df is the all_stations sheet here with the new updated station cateogries in in
     #grouped origin and destination are grouped dfs of the total journeys grouped by station
-    #this method is to write to the new spreadsheet clones
+    #this method is to write to the new spreadsheet 
+
+    
+    target = r"C:/Users/kharesa-kesa.spencer/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v3.00"+str(scenario_tag)+'.xlsx'
+
+    #copying the path to spreadsheet file as the target scenario
+    shutil.copyfile(path_of_spreadsh, target)
 
 
-    #clones spreadsheet as to not affect the original when writing to the sheet
-    original = path_of_spreadsh
-    clone = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v3.00_clone.xlsx"
-    target = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v3.00"+str(scenario_tag)+'.xlsx'
+    # workbook=xl.load_workbook(clone)
+    # sheet_names=workbook.sheetnames
+    # sheet_names.remove('Dashboard')
+    #
 
-    #copying file files
-    shutil.copyfile(original, clone)
-
-    #Slimming down the clone
-    workbook=xl.load_workbook(clone)
-    sheet_names=workbook.sheetnames
-    sheet_names.remove('Dashboard')
-
-
-    for sheet in sheet_names:
-        del workbook[sheet]
-
-    workbook.save(target)
+    # for sheet in sheet_names:
+    #     del workbook[sheet]
+    #
+    # workbook.save(target)
 
     #reading from the spreadsheet
-    st_cat_df = pd.read_excel(clone, sheet_name = "St_Cat", engine='openpyxl')
-    st_cat_df.rename(columns={'CRS Code': 'CRS_Code', 'Station Name (MOIRA Name)': 'Station_Name'},inplace=True)
+    st_cat_df = pd.read_excel(path_of_spreadsh, sheet_name="St_Cat", engine='openpyxl')
+    st_cat_df.rename(columns={'CRS Code': 'CRS_Code', 'Station Name (MOIRA Name)': 'Station_Name'}, inplace=True)
 
     st_cat_df = st_cat_df.loc[:,~st_cat_df.columns.duplicated()].copy()
 
@@ -428,19 +430,9 @@ def into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_d
             new_category = final_df.loc[final_df.Unique_Code == code, 'ORR_Step_Free_Category'].item()
             st_cat_df.loc[st_cat_df.CRS_Code == str(code), 'Including CP6 AfA'] = new_category
 
+    #export back to Excel
+    with pd.ExcelWriter(target, mode="a", engine="openpyxl", if_sheet_exists='replace') as writer:
 
-    #setting all Cat A as None
-
-    grouped_origin_df.loc[grouped_origin_df.AfAOrigin=='A', 'Total_Journeys'] = None
-    grouped_origin_df.loc[grouped_origin_df.AfAOrigin=='B1', 'Total_Journeys'] = None
-
-    grouped_destination_df.loc[grouped_destination_df.AfADest=='A', 'Total_Journeys'] = None
-    grouped_destination_df.loc[grouped_destination_df.AfADest=='B1', 'Total_Journeys'] = None
-
-    #export back to csv
-    with pd.ExcelWriter(target, mode="a",engine="openpyxl") as writer:
-
-        final_df.to_excel(writer, sheet_name="All Stations", index=False)
         st_cat_df.to_excel(writer, sheet_name="St_Cat", index=False)
         grouped_origin_df.to_excel(writer, sheet_name="Inaccessible O Accessi D")
         grouped_destination_df.to_excel(writer, sheet_name="Accessible O Inaccessi D")
@@ -452,7 +444,7 @@ def output_to_log(input_df, scenario_tag ):
     now = datetime.now()
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
 
-    with open(r"C:\Users\Kharesa-Kesa.Spencer\OneDrive - Arup\Projects\Network Rail Accessibility case\CSV WORK\scenarios_output_log.txt", "a+") as file_object:
+    with open(r"C:\Users\kharesa-kesa.spencer\OneDrive - Arup\NRAS Secondment\Automation\scenarios_output_log.txt", "a+") as file_object:
         # Move read cursor to the start of file.
         file_object.seek(0)
         # If file is not empty then append '\n'
@@ -493,9 +485,16 @@ def make_kepler_input(final_df, path_of_spreadsh, scenario_tag):
 
 
 
+
 #Pseudo-Main
 
-path_of_spreadsh =  r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v3.00.xlsx"
+
+#clones spreadsheet as to not affect the original when writing to the sheet
+original =  r"C:/Users/kharesa-kesa.spencer/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v3.00.xlsx"
+clone = r"C:/Users/kharesa-kesa.spencer/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v3.00_clone.xlsx"
+shutil.copyfile(original, clone)
+
+path_of_spreadsh = clone
 base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", engine='openpyxl')
 #with the option of selecting table from sheet 
 #base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", header=2, usecols="B:AS", engine='openpyxl')
@@ -514,6 +513,6 @@ final_df = blanking_rows(updated_mobility_and_isolation)
 #
 # output_to_log(input_df, scenario_tag)
 #
-# into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_tag)
+into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_tag)
 #
 # make_kepler_input(final_df, path_of_spreadsh, scenario_tag)
