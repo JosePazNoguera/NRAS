@@ -25,7 +25,7 @@ alt_any = pd.read_excel(path_of_spreadsh, sheet_name="Alt_Any_20", header=4, use
 input_df, scenario_tag = get_updated_stations()
 ```
 
-2. The script then reads in the OD Matrix and the input csv; defined by the user before running, into data frames and updates the station categories by the values defined in the input csv, this is done in the fuctions below
+2. The script then reads in the OD Matrix and the input csv; defined by the user before running, into data frames and updates the station categories by the values defined in the input csv, this is done in the functions below
 ```
 def input_OD_Matrix():
 
