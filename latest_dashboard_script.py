@@ -28,7 +28,7 @@ def get_connectivity_journeys_matrix(search_value):
 
 
 def get_updated_stations():
-    input_path = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Inputs/Input template.csv"
+    input_path = r"C:/Users/kharesa-kesa.spencer/OneDrive - Arup/NRAS Secondment/Automation/Inputs/Input template.csv"
     input_df = pd.read_csv(input_path)
     scenario_tag = 1
     # Import stations to be upgraded depending on the scenario
@@ -80,7 +80,7 @@ def input_OD_Matrix():
     # inputs
     # connect to the access database
     conn = pyodbc.connect(
-        r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Inputs/MOIRAOctober22.accdb;')
+        r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/kharesa-kesa.spencer/OneDrive - Arup/NRAS Secondment/Automation/Inputs/MOIRAOctober22.accdb;')
 
     query = 'select * from JoinCodes'
     OD_df = pd.read_sql(query, conn)
@@ -393,19 +393,15 @@ def into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_d
 
     #Final_df is the all_stations sheet here with the new updated station cateogries in in
     #grouped origin and destination are grouped dfs of the total journeys grouped by station
-    #this method is to write to the new spreadsheet clones
+    #this method is to write to the new spreadsheet 
+
+    
+    target = r"C:/Users/kharesa-kesa.spencer/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v3.00"+str(scenario_tag)+'.xlsx'
+
+    #copying the path to spreadsheet file as the target scenario
+    shutil.copyfile(path_of_spreadsh, target)
 
 
-    #clones spreadsheet as to not affect the original when writing to the sheet
-    original = path_of_spreadsh
-    clone = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v3.00_clone.xlsx"
-    target = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v3.00"+str(scenario_tag)+'.xlsx'
-
-    #copying file files
-    shutil.copyfile(original, clone)
-    shutil.copyfile(original, target)
-
-    #Slimming down the clone
     # workbook=xl.load_workbook(clone)
     # sheet_names=workbook.sheetnames
     # sheet_names.remove('Dashboard')
@@ -417,7 +413,7 @@ def into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_d
     # workbook.save(target)
 
     #reading from the spreadsheet
-    st_cat_df = pd.read_excel(clone, sheet_name="St_Cat", engine='openpyxl')
+    st_cat_df = pd.read_excel(path_of_spreadsh, sheet_name="St_Cat", engine='openpyxl')
     st_cat_df.rename(columns={'CRS Code': 'CRS_Code', 'Station Name (MOIRA Name)': 'Station_Name'}, inplace=True)
 
     st_cat_df = st_cat_df.loc[:,~st_cat_df.columns.duplicated()].copy()
@@ -448,7 +444,7 @@ def output_to_log(input_df, scenario_tag ):
     now = datetime.now()
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
 
-    with open(r"C:\Users\jose.delapaznoguera\OneDrive - Arup\NRAS Secondment\Automation\scenarios_output_log.txt", "a+") as file_object:
+    with open(r"C:\Users\kharesa-kesa.spencer\OneDrive - Arup\NRAS Secondment\Automation\scenarios_output_log.txt", "a+") as file_object:
         # Move read cursor to the start of file.
         file_object.seek(0)
         # If file is not empty then append '\n'
@@ -489,9 +485,16 @@ def make_kepler_input(final_df, path_of_spreadsh, scenario_tag):
 
 
 
+
 #Pseudo-Main
 
-path_of_spreadsh =  r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v3.00.xlsx"
+
+#clones spreadsheet as to not affect the original when writing to the sheet
+original =  r"C:/Users/kharesa-kesa.spencer/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v3.00.xlsx"
+clone = r"C:/Users/kharesa-kesa.spencer/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v3.00_clone.xlsx"
+shutil.copyfile(original, clone)
+
+path_of_spreadsh = clone
 base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", engine='openpyxl')
 #with the option of selecting table from sheet 
 #base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", header=2, usecols="B:AS", engine='openpyxl')
