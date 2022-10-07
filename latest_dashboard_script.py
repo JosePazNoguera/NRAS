@@ -381,6 +381,7 @@ def blanking_rows(updated_mobility_and_isolation):
         for col in list_of_cols:
 
             if row['Inaccessible_(1_if_not_Step_Free_Cat._A_or_B1)'] == 0:
+                print(row['Station_Name'])
                 updated_mobility_and_isolation.loc[updated_mobility_and_isolation['Inaccessible_(1_if_not_Step_Free_Cat._A_or_B1)'] == 0, col]=None
 
     updated_mobility_and_isolation['DfT_Category'] = updated_mobility_and_isolation['DfT_Category'].fillna('')
