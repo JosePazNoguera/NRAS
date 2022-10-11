@@ -483,12 +483,7 @@ def make_kepler_input(final_df, path_of_spreadsh, scenario_tag):
     csv_outpath = 'Stations_sc_'+str(scenario_tag)
     kepler.to_csv(csv_outpath)
 
-
-
-
 #Pseudo-Main
-
-
 
 input_path = r"C:\Users\jose.delapaznoguera\OneDrive - Arup\NRAS Secondment\Automation\Inputs\Scenarios kyle.csv"
 input_df = pd.read_csv(input_path, index_col=0,)
@@ -523,9 +518,7 @@ for scenario in input_df.columns:
     output_to_log(upgrade_list, str(scenario))
     #
     into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario)
-    print(f"Scenario {scenario} run successfully")
+    print(f"Scenario {scenario} run successfully. {len(upgrade_list)} stations were upgraded")
 
 os.remove(clone)
 print(f"Process finished successfully")
-
-
