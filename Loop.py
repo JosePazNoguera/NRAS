@@ -6,6 +6,7 @@ This script will attempt to replicate the actions of the spreadsheet generating 
 # from asyncio.unix_events import _UnixSelectorEventLoop
 # from email import header
 #from macpath import split
+import os
 from operator import index
 from matplotlib.pyplot import polar
 import pandas as pd, numpy as np, glob, ast, openpyxl as xl, shutil, pyodbc, random, datetime
@@ -523,3 +524,8 @@ for scenario in input_df.columns:
     #
     into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario)
     print(f"Scenario {scenario} run successfully")
+
+os.remove(clone)
+print(f"Process finished successfully")
+
+
