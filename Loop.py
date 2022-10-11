@@ -27,21 +27,21 @@ def get_connectivity_journeys_matrix(search_value):
     return e[search_value]
 
 
-def get_updated_stations():
-    input_path = r"C:\Users\jose.delapaznoguera\OneDrive - Arup\NRAS Secondment\Automation\Inputs\Scenarios kyle.csv"
-    input_df = pd.read_csv(input_path, index_col=0,)
-    input_df.drop(['Station Name (MOIRA Name)'], axis=1, inplace=True)
-    # Import stations to be upgraded depending on the scenario
-    upgrade_list = pd.DataFrame()
-    for scenario in input_df.columns:
-        if input_df[scenario].sum() == 0:
-            continue
-        else:
-            upgrade_list['TLC'] = input_df.index
-            upgrade_list['New_Category'] = input_df[scenario].values
-            upgrade_list.dropna(inplace=True)
-
-    return upgrade_list
+# def get_updated_stations():
+#     input_path = r"C:\Users\jose.delapaznoguera\OneDrive - Arup\NRAS Secondment\Automation\Inputs\Scenarios kyle.csv"
+#     input_df = pd.read_csv(input_path, index_col=0)
+#     input_df.drop(['Station Name (MOIRA Name)'], axis=1, inplace=True)
+#     # Import stations to be upgraded depending on the scenario
+#     upgrade_list = pd.DataFrame()
+#     for scenario in input_df.columns:
+#         if input_df[scenario].sum() == 0:
+#             continue
+#         else:
+#             upgrade_list['TLC'] = input_df.index
+#             upgrade_list['New_Category'] = input_df[scenario].values
+#             upgrade_list.dropna(inplace=True)
+#
+#     return upgrade_list
 
 
 def get_mobility_isolation_matrix(search_value):
@@ -87,7 +87,7 @@ def input_OD_Matrix():
     return OD_df
 
 
-def map_input_stations(OD_df, base_df, input_df):
+def map_input_stations(OD_df, base_df, upgrade_list):
     # Add numerical score based on a dictionary
     my_dict = {'0': 0, 'A': 1, 'B': 2, 'B1': 3, 'B2': 4, 'B3': 5, 'C': 6, 'Null': -1}
     origin_score = OD_df.AfAOrigin.map(my_dict)
@@ -126,7 +126,7 @@ def map_input_stations(OD_df, base_df, input_df):
     # this method does all the calculating the new categories
 
     # Import stations to be upgraded
-    upgrade_list = input_df
+    # upgrade_list = input_df
 
     # In anticipation of the new score the columm is set to None
     base_df['Inaccessible_(1_if_not_Step_Free_Cat._A_or_B1)'] = None
@@ -199,11 +199,11 @@ def map_input_stations(OD_df, base_df, input_df):
     return base_df, grouped_origin_df, grouped_destination_df, New_ODMatrix
 
 
-def get_new_categories_set_jrnys(base_df, input_df):
+def get_new_categories_set_jrnys(base_df, upgrade_list):
     # set the OD matrix, either from the access database or from the csv
     OD_df = input_OD_Matrix()
 
-    base_df, grouped_origin_df, grouped_destination_df, New_ODMatrix = map_input_stations(OD_df, base_df, input_df)
+    base_df, grouped_origin_df, grouped_destination_df, New_ODMatrix = map_input_stations(OD_df, base_df, upgrade_list)
 
     # so now the base df and the od df both have updated station categories from the input template
     # next is adding the column codes and the journey stats, mapping from the OD_df to the base df
@@ -234,7 +234,7 @@ def get_new_categories_set_jrnys(base_df, input_df):
 
             unlock_jrny.append(
                 int(row['2019_Journeys_to_an_accessible_destination'] + row['2019_Journeys_from_an_accessible_origin']))
-            connc.append(int(row['2019_Connectivity_(count_of_stations_directly_served)']))
+            connc.append(row['2019_Connectivity_(count_of_stations_directly_served)'])
 
             # setting this by looping through df with if statements
         else:
@@ -302,7 +302,7 @@ def get_new_categories_set_jrnys(base_df, input_df):
     return base_df, grouped_origin_df, grouped_destination_df, New_ODMatrix
 
 
-def set_mobility_isolation_score(updated_cats_and_jrnys, alt_any_df, input_df):
+def set_mobility_isolation_score(updated_cats_and_jrnys, alt_any_df, upgrade_list):
     # COLUMN V
 
     # Matrix
@@ -319,7 +319,7 @@ def set_mobility_isolation_score(updated_cats_and_jrnys, alt_any_df, input_df):
                 updated_cats_and_jrnys['Unique_Code'] == str(row['Unique_Code']), 'Mobility_Score'] = None
 
     # getting the input stations
-    list_of_changed_stns = list(input_df['TLC'])
+    list_of_changed_stns = list(upgrade_list['TLC'])
 
     # COLUMN Z
     # creating a blank dataframe with the same columns as the alt_any sheet table
@@ -395,7 +395,7 @@ def into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_d
     #this method is to write to the new spreadsheet 
 
     
-    target = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.00"+str(scenario_tag)+'.xlsx'
+    target = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.00_"+str(scenario_tag)+'.xlsx'
 
     #copying the path to spreadsheet file as the target scenario
     shutil.copyfile(path_of_spreadsh, target)
@@ -488,30 +488,38 @@ def make_kepler_input(final_df, path_of_spreadsh, scenario_tag):
 #Pseudo-Main
 
 
-#clones spreadsheet as to not affect the original when writing to the sheet
-original =  r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.00.xlsx"
-clone = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.00_clone.xlsx"
-shutil.copyfile(original, clone)
 
-path_of_spreadsh = clone
-base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", engine='openpyxl')
-#with the option of selecting table from sheet 
-#base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", header=2, usecols="B:AS", engine='openpyxl')
-alt_any = pd.read_excel(path_of_spreadsh, sheet_name="Alt_Any_20", header=4, usecols="B:F", engine='openpyxl')
-input_df, scenario_tag = get_updated_stations()
+input_path = r"C:\Users\jose.delapaznoguera\OneDrive - Arup\NRAS Secondment\Automation\Inputs\Scenarios kyle.csv"
+input_df = pd.read_csv(input_path, index_col=0,)
+input_df.drop(['Station Name (MOIRA Name)'], axis=1, inplace=True)
+upgrade_list = pd.DataFrame()
 
+for scenario in input_df.columns:
+    # clones spreadsheet as to not affect the original when writing to the sheet
+    original = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.00.xlsx"
+    clone = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.00_clone.xlsx"
+    shutil.copyfile(original, clone)
 
-base_df.columns = [c.replace(' ', '_') for c in base_df.columns]
-alt_any.columns = [c.replace(' ', '_') for c in alt_any.columns]
-#
-updated_cats_and_jrnys, grouped_origin_df, grouped_destination_df, New_ODMatrix = get_new_categories_set_jrnys(base_df, input_df)
-# #
-updated_mobility_and_isolation = set_mobility_isolation_score(updated_cats_and_jrnys, alt_any, input_df)
-# #
-final_df = blanking_rows(updated_mobility_and_isolation)
-#
-output_to_log(input_df, scenario_tag)
-#
-into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_tag)
-#
-# make_kepler_input(final_df, path_of_spreadsh, scenario_tag)
+    path_of_spreadsh = clone
+    base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", engine='openpyxl')
+    # with the option of selecting table from sheet
+    # base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", header=2, usecols="B:AS", engine='openpyxl')
+    alt_any = pd.read_excel(path_of_spreadsh, sheet_name="Alt_Any_20", header=4, usecols="B:F", engine='openpyxl')
+
+    base_df.columns = [c.replace(' ', '_') for c in base_df.columns]
+    alt_any.columns = [c.replace(' ', '_') for c in alt_any.columns]
+
+    upgrade_list = pd.DataFrame()
+    upgrade_list['TLC'] = input_df.index
+    upgrade_list['New_Category'] = input_df[scenario].values
+    upgrade_list.dropna(inplace=True)
+    upgrade_list.reset_index()
+    updated_cats_and_jrnys, grouped_origin_df, grouped_destination_df, New_ODMatrix = get_new_categories_set_jrnys(
+        base_df, upgrade_list)
+    #
+    final_df = set_mobility_isolation_score(updated_cats_and_jrnys, alt_any, upgrade_list)
+    ##
+    output_to_log(upgrade_list, str(scenario))
+    #
+    into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario)
+    print(f"Scenario {scenario} run successfully")
