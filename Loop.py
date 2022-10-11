@@ -80,7 +80,7 @@ def input_OD_Matrix():
     # inputs
     # connect to the access database
     conn = pyodbc.connect(
-        r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Inputs/MOIRAOctober22.accdb;')
+        r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/kharesa-kesa.spencer/OneDrive - Arup/NRAS Secondment/Automation/Inputs/MOIRAOctober22.accdb;')
 
     query = 'select * from JoinCodes'
     OD_df = pd.read_sql(query, conn)
@@ -396,7 +396,7 @@ def into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_d
     #this method is to write to the new spreadsheet 
 
     
-    target = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.00_"+str(scenario_tag)+'.xlsx'
+    target = r"C:/Users/kharesa-kesa.spencer/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.00_"+str(scenario_tag)+'.xlsx'
 
     #copying the path to spreadsheet file as the target scenario
     shutil.copyfile(path_of_spreadsh, target)
@@ -444,7 +444,7 @@ def output_to_log(input_df, scenario_tag ):
     now = datetime.now()
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
 
-    with open(r"C:\Users\jose.delapaznoguera\OneDrive - Arup\NRAS Secondment\Automation\scenarios_output_log.txt", "a+") as file_object:
+    with open(r"C:\Users\kharesa-kesa.spencer\OneDrive - Arup\NRAS Secondment\Automation\scenarios_output_log.txt", "a+") as file_object:
         # Move read cursor to the start of file.
         file_object.seek(0)
         # If file is not empty then append '\n'
@@ -483,17 +483,22 @@ def make_kepler_input(final_df, path_of_spreadsh, scenario_tag):
     csv_outpath = 'Stations_sc_'+str(scenario_tag)
     kepler.to_csv(csv_outpath)
 
+
+
+
 #Pseudo-Main
 
-input_path = r"C:\Users\jose.delapaznoguera\OneDrive - Arup\NRAS Secondment\Automation\Inputs\Scenarios kyle.csv"
+
+
+input_path = r"C:\Users\kharesa-kesa.spencer\OneDrive - Arup\NRAS Secondment\Automation\Inputs\Scenarios kyle.csv"
 input_df = pd.read_csv(input_path, index_col=0,)
 input_df.drop(['Station Name (MOIRA Name)'], axis=1, inplace=True)
 upgrade_list = pd.DataFrame()
 
 for scenario in input_df.columns:
     # clones spreadsheet as to not affect the original when writing to the sheet
-    original = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.00.xlsx"
-    clone = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.00_clone.xlsx"
+    original = r"C:/Users/kharesa-kesa.spencer/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.00.xlsx"
+    clone = r"C:/Users/kharesa-kesa.spencer/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.00_clone.xlsx"
     shutil.copyfile(original, clone)
 
     path_of_spreadsh = clone
@@ -515,10 +520,15 @@ for scenario in input_df.columns:
     #
     final_df = set_mobility_isolation_score(updated_cats_and_jrnys, alt_any, upgrade_list)
     ##
-    output_to_log(upgrade_list, str(scenario))
+    #output_to_log(upgrade_list, str(scenario))
     #
-    into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario)
+    #into_stepfree_spreadsheet(final_df, grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario)
     print(f"Scenario {scenario} run successfully. {len(upgrade_list)} stations were upgraded")
+
+    #a = "NewODMatrix_"
+    #exec(a+scenario+" = New_ODMatrix")
+    #print(NewODMatrix__url1)#0
 
 os.remove(clone)
 print(f"Process finished successfully")
+
