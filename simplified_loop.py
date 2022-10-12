@@ -280,21 +280,20 @@ for scenario in input_df.columns:
     path_of_spreadsh = clone
     scenario_desc = pd.DataFrame(scen_desc.loc[scenario][['Description', 'Notes']])
 
-    base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", engine='openpyxl')
+    # base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", engine='openpyxl')
     # with the option of selecting table from sheet
     # base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", header=2, usecols="B:AS", engine='openpyxl')
-    alt_any = pd.read_excel(path_of_spreadsh, sheet_name="Alt_Any_20", header=4, usecols="B:F", engine='openpyxl')
+    # alt_any = pd.read_excel(path_of_spreadsh, sheet_name="Alt_Any_20", header=4, usecols="B:F", engine='openpyxl')
 
-    base_df.columns = [c.replace(' ', '_') for c in base_df.columns]
-    alt_any.columns = [c.replace(' ', '_') for c in alt_any.columns]
+    # base_df.columns = [c.replace(' ', '_') for c in base_df.columns]
+    # alt_any.columns = [c.replace(' ', '_') for c in alt_any.columns]
 
     upgrade_list = pd.DataFrame()
     upgrade_list['TLC'] = input_df.index
     upgrade_list['New_Category'] = input_df[scenario].values
     upgrade_list.dropna(inplace=True)
     upgrade_list.reset_index()
-    grouped_origin_df, grouped_destination_df, New_ODMatrix, pivot =\
-        map_input_stations(OD_df, upgrade_list)
+    grouped_origin_df, grouped_destination_df, New_ODMatrix, pivot = map_input_stations(OD_df, upgrade_list)
     ##
     output_to_log(upgrade_list, str(scenario))
     #
