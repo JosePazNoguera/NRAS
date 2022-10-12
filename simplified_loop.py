@@ -14,6 +14,8 @@ from openpyxl import Workbook
 from openpyxl import load_workbook
 from datetime import datetime
 
+from pandas import DataFrame
+
 
 def get_orr_step_free_category(search_value):
     orr = {'B': 'Bottom', 'B2': 'Bottom', 'B3': 'Middle', 'C': 'Top'}
@@ -129,8 +131,8 @@ def map_input_stations(OD_df, upgrade_list):
     New_ODMatrix.drop(axis=1,columns=['origin_score', 'destination_score', 'jny_score'], inplace=True)
 
     # Create pivot table for the final output
-    vector = New_ODMatrix[['AfAOrigin', 'AfADest', 'Total_Journeys']].groupby(['AfAOrigin', 'AfADest']).sum()
-    pivot = vector.pivot_table(index='AfAOrigin', columns='AfADest', values='Total_Journeys')
+    base_pivot = OD_df.pivot_table(index='AfAOrigin', columns='AfADest', values='Total_Journeys', aggfunc=np.sum)
+    pivot = New_ODMatrix.pivot_table(index='AfAOrigin', columns='AfADest', values='Total_Journeys', aggfunc=np.sum)
 
     # dataframes where only the origin or the destination are accessible
     OD_df_ass_origin = OD_df
@@ -151,7 +153,7 @@ def map_input_stations(OD_df, upgrade_list):
     grouped_destination_df.loc[grouped_destination_df.AfADest == 'A', 'Total_Journeys'] = None
     grouped_destination_df.loc[grouped_destination_df.AfADest == 'B1', 'Total_Journeys'] = None
 
-    return grouped_origin_df, grouped_destination_df, New_ODMatrix, pivot
+    return grouped_origin_df, grouped_destination_df, New_ODMatrix, pivot, base_pivot
 
 
 def into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_desc, pivot):
@@ -193,7 +195,7 @@ def into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of
         st_cat_df.to_excel(writer, sheet_name="St_Cat", index=False)
         scenario_desc.to_excel(writer, sheet_name="Scen_desc", index=False)
         kpi_df.to_excel(writer, sheet_name="KPI_Py", index=False)
-        pivot.to_excel(writer, sheet_name="Pivot", index=False)
+        pivot.to_excel(writer, sheet_name="Pivot")
 
 
         grouped_origin_df.to_excel(writer, sheet_name="Inaccessible O Accessi D")
@@ -261,8 +263,8 @@ def kpi(New_ODMatrix, OD_df):
     step_free_jnys_pctg = step_free_jnys / OD_df.Total_Journeys.sum()
     B3_or_C_stns = New_ODMatrix.Total_Journeys.loc[(New_ODMatrix['jny_category'] == "B3") | (New_ODMatrix['jny_category'] == "C")].sum()
     B3_or_C_stns_pctg = B3_or_C_stns / OD_df.Total_Journeys.sum()
-
-    kpi_df = pd.DataFrame(columns=[step_free_jnys_pctg, B3_or_C_stns_pctg])
+    my_dict = {'step_free_journeys_%': [step_free_jnys_pctg], 'B3_or_C_stations_&': [B3_or_C_stns_pctg]}
+    kpi_df = pd.DataFrame(data=my_dict)
     return kpi_df
 
 
@@ -293,7 +295,7 @@ for scenario in input_df.columns:
     upgrade_list['New_Category'] = input_df[scenario].values
     upgrade_list.dropna(inplace=True)
     upgrade_list.reset_index()
-    grouped_origin_df, grouped_destination_df, New_ODMatrix, pivot = map_input_stations(OD_df, upgrade_list)
+    grouped_origin_df, grouped_destination_df, New_ODMatrix, pivot, base_pivot = map_input_stations(OD_df, upgrade_list)
     ##
     output_to_log(upgrade_list, str(scenario))
     #
