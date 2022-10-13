@@ -127,10 +127,11 @@ def map_input_stations(OD_df, upgrade_list, path_of_spreadsh):
         # Update destination category
         New_ODMatrix.loc[New_ODMatrix.DestinationTLC == str(tlc), 'AfADest'] = new_category
 
+    #appending region to the OD Matrix
     for stn in xl.CRS_Code:
         if str(stn) == 'nan':
             continue
-        if stn in New_ODMatrix.values():
+        if stn in New_ODMatrix.values:
 
             # Update category. It is necessary to use the .item() method to the Series ,
             New_ODMatrix.loc[New_ODMatrix.AfAOrigin == stn, 'Region'] = xl.loc[xl.CRS_Code == stn, 'Region'].item()
