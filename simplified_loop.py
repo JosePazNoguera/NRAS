@@ -72,40 +72,47 @@ def input_OD_Matrix():
 
 
 def map_input_stations(OD_df, upgrade_list):
+
     # Add numerical score based on a dictionary
     my_dict = {'0': 0, 'A': 1, 'B': 2, 'B1': 3, 'B2': 4, 'B3': 5, 'C': 6, 'Null': -1}
     origin_score = OD_df.AfAOrigin.map(my_dict)
     destination_score = OD_df.AfADest.map(my_dict)
     OD_df['origin_score'] = origin_score
     OD_df['destination_score'] = destination_score
+
+    # Add Total journeys: sum of standard and 1st class
     OD_df['Total_Journeys'] = OD_df['STDJOURNEYS'] + OD_df['1stJOURNEYS']
 
-    # Categorize the journeys by looking at the maximum numerical score of the origin and destination stations
+    # Categorize the journeys by looking at the maximum numerical score (worst) of the origin and destination stations
     jny_score = np.maximum(OD_df.origin_score, OD_df.destination_score)
-
-    # Add the list as a new column to the existing dataframe
     OD_df['jny_score'] = jny_score
+
+    # Use a second mapping to categorise the journeys. The journey category represents the worst score of the origin
+    # and destination scores
     my_dict_2 = {1: 'A', 2: 'B', 3: 'B1', 4: 'B2', 5: 'B3', 6: 'C'}
     jny_category = OD_df.jny_score.map(my_dict_2)
     OD_df['jny_category'] = jny_category
     OD_df['concat_categories'] = OD_df.AfAOrigin + OD_df.AfADest
 
-    # print(base_df.tail(10))
-
-    ## TEST
+    ## TEST --> Look at tests.py
     OD_df.isna().sum()
 
     # Identify OD pairs where the score is 0 or Null. Save the number of removed records for traceability
     dropped_origins = len(OD_df[(OD_df.origin_score < 1) | (OD_df.origin_score.isna())])
     dropped_destinations = len(OD_df[(OD_df.destination_score < 1) | (OD_df.destination_score.isna())])
+
+    # Removal of OD pairs where score is 0 or Null
     # OD_df = OD_df.drop(OD_df[(OD_df.origin_score < 1) | (OD_df.origin_score.isna())].index)
     # OD_df = OD_df.drop(OD_df[(OD_df.destination_score < 1) | (OD_df.destination_score.isna())].index)
 
     print(
         f"A total of {dropped_origins:n} origins and {dropped_destinations:n} destinations were invalid and not included in the analysis.")
 
+    # A copy of the OD matrix is created before upgrading any values
     New_ODMatrix = OD_df.copy()
 
+    # Upgrade routine for the OD Matrix. The loop is done as many times as the number of elements in the upgrade_list
+    # The upgrade list only contains stations that are upgraded ignoring the stations that remain unchanged.
     for tlc in upgrade_list.TLC:
         if str(tlc) == 'nan':
             continue
@@ -117,6 +124,7 @@ def map_input_stations(OD_df, upgrade_list):
         # Update destination category
         New_ODMatrix.loc[New_ODMatrix.DestinationTLC == str(tlc), 'AfADest'] = new_category
 
+    # After the loop is competed, we need to use the map functions again to refresh the scores
     # Update origin score
     New_ODMatrix.origin_score = New_ODMatrix.AfAOrigin.map(my_dict)
     # Update destination score
@@ -128,11 +136,13 @@ def map_input_stations(OD_df, upgrade_list):
     # Concat the 2 categories together
     New_ODMatrix['concat_categories'] = New_ODMatrix.AfAOrigin + New_ODMatrix.AfADest
 
-    New_ODMatrix.drop(axis=1,columns=['origin_score', 'destination_score', 'jny_score'], inplace=True)
+    # Drop unnecessary columns
+    New_ODMatrix.drop(axis=1, columns=['origin_score', 'destination_score', 'jny_score'], inplace=True)
 
     # Create pivot table for the final output
     base_pivot = OD_df.pivot_table(index='AfAOrigin', columns='AfADest', values='Total_Journeys', aggfunc=np.sum)
     pivot = New_ODMatrix.pivot_table(index='AfAOrigin', columns='AfADest', values='Total_Journeys', aggfunc=np.sum)
+    #pivot by region ...
 
     # dataframes where only the origin or the destination are accessible
     OD_df_ass_origin = OD_df
@@ -158,9 +168,9 @@ def map_input_stations(OD_df, upgrade_list):
 
 def into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_desc, pivot):
 
-    #Final_df is the all_stations sheet here with the new updated station cateogries in in
+    # this method is to write to the new spreadsheet
+    #St_Cat contains the updated station cateogries, the spreadsheet will calculate all the relevant fields
     #grouped origin and destination are grouped dfs of the total journeys grouped by station
-    #this method is to write to the new spreadsheet 
 
     
     target = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.00_"+str(scenario)+'.xlsx'
@@ -173,8 +183,6 @@ def into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of
     st_cat_df.rename(columns={'CRS Code': 'CRS_Code', 'Station Name (MOIRA Name)': 'Station_Name'}, inplace=True)
 
     st_cat_df = st_cat_df.loc[:,~st_cat_df.columns.duplicated()].copy()
-
-    kpi_df = kpi(New_ODMatrix, OD_df)
 
     # Next steps upgrading the data in the clone to this current scenario:
     # 1. find the stations to be upgraded.
@@ -189,11 +197,14 @@ def into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of
         else:
             continue
 
+    # Create the kpi's that will be saved in the spreadsheet
+
+    kpi_df = kpi(New_ODMatrix, OD_df, scenario_desc)
+
     #export back to Excel
     with pd.ExcelWriter(target, mode="a", engine="openpyxl", if_sheet_exists='replace') as writer:
 
         st_cat_df.to_excel(writer, sheet_name="St_Cat", index=False)
-        scenario_desc.to_excel(writer, sheet_name="Scen_desc", index=False)
         kpi_df.to_excel(writer, sheet_name="KPI_Py", index=False)
         pivot.to_excel(writer, sheet_name="Pivot")
 
@@ -204,7 +215,7 @@ def into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of
     #done
 
 
-def output_to_log(input_df, scenario ):
+def output_to_log(input_df, scenario):
 
     now = datetime.now()
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
@@ -250,27 +261,28 @@ def make_kepler_input(final_df, path_of_spreadsh, scenario):
 
 def scenario_input():
     input_path = "C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Inputs/Suggested Example Scenario for Jose.xlsx"
-    scen_desc = pd.read_excel(input_path, sheet_name="Scenario Master", engine='openpyxl', index_col=0)
     input_df = pd.read_excel(input_path, sheet_name="Diffs", engine='openpyxl', index_col=0)
     input_df.drop(['Station Name (MOIRA Name)', 'CP5', 'CP6'], axis=1, inplace=True)
     input_df.replace(to_replace="ignore", value=np.NaN, inplace=True)
-    return scen_desc, input_df
+    all_scen_df = pd.read_excel(input_path, sheet_name="Scenario Master", engine='openpyxl', index_col=0)
 
-def kpi(New_ODMatrix, OD_df):
+    return all_scen_df, input_df
+
+def kpi(New_ODMatrix, OD_df, scenario_desc):
 
     #KPIs for the step-free spreadsheet
     step_free_jnys = New_ODMatrix.Total_Journeys.loc[(New_ODMatrix['jny_category'] == "A") | (New_ODMatrix['jny_category'] == "B1")].sum()
     step_free_jnys_pctg = step_free_jnys / OD_df.Total_Journeys.sum()
     B3_or_C_stns = New_ODMatrix.Total_Journeys.loc[(New_ODMatrix['jny_category'] == "B3") | (New_ODMatrix['jny_category'] == "C")].sum()
     B3_or_C_stns_pctg = B3_or_C_stns / OD_df.Total_Journeys.sum()
-    my_dict = {'step_free_journeys_%': [step_free_jnys_pctg], 'B3_or_C_stations_&': [B3_or_C_stns_pctg]}
+    my_dict = {'scenario_desc': scenario_desc.loc['Description'], 'scenario_notes': scenario_desc.loc['Notes'],'step_free_journeys_%': step_free_jnys_pctg, 'B3_or_C_stations_&': B3_or_C_stns_pctg}
     kpi_df = pd.DataFrame(data=my_dict)
     return kpi_df
 
 
 #Pseudo-Main
 
-scen_desc, input_df =scenario_input()
+all_scen_df, input_df =scenario_input()
 OD_df = input_OD_Matrix()
 
 for scenario in input_df.columns:
@@ -279,8 +291,8 @@ for scenario in input_df.columns:
     clone = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.00_clone.xlsx"
     shutil.copyfile(original, clone)
 
+    scenario_desc = pd.DataFrame(all_scen_df.loc[scenario][['Description', 'Notes']])
     path_of_spreadsh = clone
-    scenario_desc = pd.DataFrame(scen_desc.loc[scenario][['Description', 'Notes']])
 
     # base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", engine='openpyxl')
     # with the option of selecting table from sheet
