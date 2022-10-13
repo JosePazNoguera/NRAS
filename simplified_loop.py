@@ -59,7 +59,7 @@ def get_DfT_Num_Cat(search_value):
         e = {'A':6, 'B':5, 'C':4, 'D':3, 'E':2, 'F':1, 'NaN': None}
         return e[search_value]
 
-def input_OD_Matrix():
+def input_OD_Matrix(path_of_spreadsh):
     # inputs
     # connect to the access database
     conn = pyodbc.connect(
@@ -68,13 +68,23 @@ def input_OD_Matrix():
     query = 'select * from JoinCodes'
     OD_df = pd.read_sql(query, conn)
 
+    xl =  pd.read_excel(path_of_spreadsh, sheet_name="St_Cat", engine='openpyxl')
+    xl.rename(columns={'CRS Code': 'CRS_Code', 'Station Name (MOIRA Name)': 'Station_Name'}, inplace=True)
+
+    #appending region to the OD Matrix
+    for stn in xl.CRS_Code:
+        if str(stn) == 'nan':
+            continue
+        if stn in OD_df.values:
+
+            # Update category. It is necessary to use the .item() method to the Series ,
+            OD_df.loc[OD_df.AfAOrigin == stn, 'Region'] = xl.loc[xl.CRS_Code == stn, 'Region'].item()
+
     return OD_df
 
 
-def map_input_stations(OD_df, upgrade_list, path_of_spreadsh):
+def map_input_stations(OD_df, upgrade_list):
 
-    xl =  pd.read_excel(path_of_spreadsh, sheet_name="St_Cat", engine='openpyxl')
-    xl.rename(columns={'CRS Code': 'CRS_Code', 'Station Name (MOIRA Name)': 'Station_Name'}, inplace=True)
 
     # Add numerical score based on a dictionary
     my_dict = {'0': 0, 'A': 1, 'B': 2, 'B1': 3, 'B2': 4, 'B3': 5, 'C': 6, 'Null': -1}
@@ -127,14 +137,6 @@ def map_input_stations(OD_df, upgrade_list, path_of_spreadsh):
         # Update destination category
         New_ODMatrix.loc[New_ODMatrix.DestinationTLC == str(tlc), 'AfADest'] = new_category
 
-    #appending region to the OD Matrix
-    for stn in xl.CRS_Code:
-        if str(stn) == 'nan':
-            continue
-        if stn in New_ODMatrix.values:
-
-            # Update category. It is necessary to use the .item() method to the Series ,
-            New_ODMatrix.loc[New_ODMatrix.AfAOrigin == stn, 'Region'] = xl.loc[xl.CRS_Code == stn, 'Region'].item()
 
     # After the loop is competed, we need to use the map functions again to refresh the scores
     # Update origin score
@@ -293,9 +295,16 @@ def kpi(New_ODMatrix, OD_df, scenario_desc):
 
 
 #Pseudo-Main
+#first clone to have the spreadsheet path for the appending regions 
+
+original = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.00.xlsx"
+clone = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.00_clone.xlsx"
+shutil.copyfile(original, clone)
+
+path_of_spreadsh = clone
 
 all_scen_df, input_df =scenario_input()
-OD_df = input_OD_Matrix()
+OD_df = input_OD_Matrix(path_of_spreadsh)
 
 for scenario in input_df.columns:
     # clones spreadsheet as to not affect the original when writing to the sheet
