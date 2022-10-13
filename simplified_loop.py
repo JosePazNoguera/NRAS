@@ -71,7 +71,10 @@ def input_OD_Matrix():
     return OD_df
 
 
-def map_input_stations(OD_df, upgrade_list):
+def map_input_stations(OD_df, upgrade_list, path_of_spreadsh):
+
+    xl =  pd.read_excel(path_of_spreadsh, sheet_name="St_Cat", engine='openpyxl')
+    xl.rename(columns={'CRS Code': 'CRS_Code', 'Station Name (MOIRA Name)': 'Station_Name'}, inplace=True)
 
     # Add numerical score based on a dictionary
     my_dict = {'0': 0, 'A': 1, 'B': 2, 'B1': 3, 'B2': 4, 'B3': 5, 'C': 6, 'Null': -1}
@@ -123,6 +126,14 @@ def map_input_stations(OD_df, upgrade_list):
         New_ODMatrix.loc[New_ODMatrix.OriginTLC == str(tlc), 'AfAOrigin'] = new_category
         # Update destination category
         New_ODMatrix.loc[New_ODMatrix.DestinationTLC == str(tlc), 'AfADest'] = new_category
+
+    for stn in xl.CRS_Code:
+        if str(stn) == 'nan':
+            continue
+        if stn in New_ODMatrix.values():
+
+            # Update category. It is necessary to use the .item() method to the Series ,
+            New_ODMatrix.loc[New_ODMatrix.AfAOrigin == stn, 'Region'] = xl.loc[xl.CRS_Code == stn, 'Region'].item()
 
     # After the loop is competed, we need to use the map functions again to refresh the scores
     # Update origin score
@@ -307,7 +318,7 @@ for scenario in input_df.columns:
     upgrade_list['New_Category'] = input_df[scenario].values
     upgrade_list.dropna(inplace=True)
     upgrade_list.reset_index()
-    grouped_origin_df, grouped_destination_df, New_ODMatrix, pivot, base_pivot = map_input_stations(OD_df, upgrade_list)
+    grouped_origin_df, grouped_destination_df, New_ODMatrix, pivot, base_pivot = map_input_stations(OD_df, upgrade_list, path_of_spreadsh)
     ##
     output_to_log(upgrade_list, str(scenario))
     #
