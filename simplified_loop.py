@@ -64,7 +64,7 @@ def input_OD_Matrix(st_cat_df):
     # inputs
     # connect to the access database
     conn = pyodbc.connect(
-        r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Inputs/MOIRAOctober22.accdb;')
+        r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/kharesa-kesa.spencer/OneDrive - Arup/NRAS Secondment/Automation/Inputs/MOIRAOctober22.accdb;')
 
     query = 'select * from JoinCodes'
     OD_df = pd.read_sql(query, conn)
@@ -76,6 +76,32 @@ def input_OD_Matrix(st_cat_df):
 
     return OD_df
 
+def regional_pivots(New_ODMatrix):
+
+    for region in New_ODMatrix['Region'].unique():
+
+        if str(region) == '0':
+            continue
+        if str(region) == 'nan':
+            continue
+        else:
+            if region == 'W&W':
+                temp_frame = New_ODMatrix.loc[New_ODMatrix['Region']==region]
+                pivot_table_WW = temp_frame.pivot_table(index='AfAOrigin', columns='AfADest', values='Total_Journeys', aggfunc=np.sum)
+                pivot_table_WW['Region'] = regionn
+
+            else: 
+                temp_frame = New_ODMatrix.loc[New_ODMatrix['Region']==region]
+                a = "pivot_table_"
+                regionn = str(region)
+                regionn = regionn.replace(' ','_')
+                pivot = temp_frame.pivot_table(index='AfAOrigin', columns='AfADest', values='Total_Journeys', aggfunc=np.sum)
+                pivot['Region'] = regionn
+                exec(a+regionn+" = pivot")
+                print((a+regionn+" = pivot"))
+
+    list_of_pivots = [pivot_table_WW, pivot_table_Eastern, pivot_table_North_West_and_Central, pivot_table_Scotland, pivot_table_Southern]
+    return list_of_pivots
 
 def map_input_stations(OD_df, upgrade_list):
 
@@ -172,14 +198,14 @@ def map_input_stations(OD_df, upgrade_list):
     return grouped_origin_df, grouped_destination_df, New_ODMatrix, pivot, base_pivot
 
 
-def into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_desc, st_cat_df, pivot):
+def into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_desc, st_cat_df, pivot, list_of_pivots):
 
     # this method is to write to the new spreadsheet
     #St_Cat contains the updated station cateogries, the spreadsheet will calculate all the relevant fields
     #grouped origin and destination are grouped dfs of the total journeys grouped by station
 
 
-    target = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10_"+str(scenario)+'.xlsx'
+    target = r"C:/Users/kharesa-kesa.spencer/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10_"+str(scenario)+'.xlsx'
 
     #copying the path to spreadsheet file as the target scenario
     shutil.copyfile(path_of_spreadsh, target)
@@ -210,6 +236,12 @@ def into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of
         new_st_cat_df.to_excel(writer, sheet_name="St_Cat", index=False)
         kpi_df.to_excel(writer, sheet_name="KPI_Py", index=False)
         pivot.to_excel(writer, sheet_name="Pivot")
+        row = 7
+        spaces = 1
+        for pivot_df in list_of_pivots:
+            pivot_df.to_excel(writer,sheet_name='Pivot',startrow=row , startcol=0)   
+            row = row + len(pivot_df.index) + spaces + 1
+            writer.save()
 
 
         grouped_origin_df.to_excel(writer, sheet_name="Inaccessible O Accessi D")
@@ -223,7 +255,7 @@ def output_to_log(input_df, scenario):
     now = datetime.now()
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
 
-    with open(r"C:\Users\jose.delapaznoguera\OneDrive - Arup\NRAS Secondment\Automation\scenarios_output_log.txt", "a+") as file_object:
+    with open(r"C:\Users\kharesa-kesa.spencer\OneDrive - Arup\NRAS Secondment\Automation\scenarios_output_log.txt", "a+") as file_object:
         # Move read cursor to the start of file.
         file_object.seek(0)
         # If file is not empty then append '\n'
@@ -263,7 +295,7 @@ def make_kepler_input(final_df, path_of_spreadsh, scenario):
     kepler.to_csv(csv_outpath)
 
 def scenario_input():
-    input_path = "C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Inputs/Suggested Example Scenario for Jose.xlsx"
+    input_path = "C:/Users/kharesa-kesa.spencer/OneDrive - Arup/NRAS Secondment/Automation/Inputs/Suggested Example Scenario for Jose.xlsx"
     input_df = pd.read_excel(input_path, sheet_name="Diffs", engine='openpyxl', index_col=0)
     input_df.drop(['Station Name (MOIRA Name)', 'CP5', 'CP6'], axis=1, inplace=True)
     input_df.replace(to_replace="ignore", value=np.NaN, inplace=True)
@@ -286,8 +318,8 @@ def kpi(New_ODMatrix, OD_df, scenario_desc):
 
 #Pseudo-Main
 
-original = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10.xlsx"
-clone = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10_clone.xlsx"
+original = r"C:/Users/kharesa-kesa.spencer/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10.xlsx"
+clone = r"C:/Users/kharesa-kesa.spencer/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10_clone.xlsx"
 shutil.copyfile(original, clone)
 
 path_of_spreadsh = clone
@@ -326,10 +358,13 @@ for scenario in input_df.columns:
         upgrade_list.dropna(inplace=True)
         upgrade_list.reset_index()
         grouped_origin_df, grouped_destination_df, New_ODMatrix, pivot, base_pivot = map_input_stations(OD_df, upgrade_list)
+        list_of_pivots = regional_pivots(New_ODMatrix)
+        list_of_pivots.append(pivot)
+        
         ##
         output_to_log(upgrade_list, str(scenario))
         #
-        into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_desc, st_cat_df, pivot)
+        into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_desc, st_cat_df, pivot, list_of_pivots)
 
         # Open the Excel file so the formulas are calculated
         # target = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10_" + str(
