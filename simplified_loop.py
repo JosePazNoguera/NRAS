@@ -64,7 +64,7 @@ def input_OD_Matrix(st_cat_df):
     # inputs
     # connect to the access database
     conn = pyodbc.connect(
-        r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/kharesa-kesa.spencer/OneDrive - Arup/NRAS Secondment/Automation/Inputs/MOIRAOctober22.accdb;')
+        r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Inputs/MOIRAOctober22.accdb;')
 
     query = 'select * from JoinCodes'
     OD_df = pd.read_sql(query, conn)
@@ -73,11 +73,13 @@ def input_OD_Matrix(st_cat_df):
     region = st_cat_df[['CRS_Code','Region']]
 
     OD_df = pd.merge(left=OD_df, right=region, how='outer', left_on='OriginTLC', right_on='CRS_Code')
-
+    missing_regions = len(OD_df.OriginTLC.loc[OD_df.Region.isna()].unique())
+    print(f'{missing_regions} origins could not be mapped to any region')
     return OD_df
 
 def regional_pivots(New_ODMatrix):
 
+    list_of_pivots = pd.DataFrame()
     for region in New_ODMatrix['Region'].unique():
 
         if str(region) == '0':
@@ -85,21 +87,10 @@ def regional_pivots(New_ODMatrix):
         if str(region) == 'nan':
             continue
         else:
-            if region == 'W&W':
-                temp_frame = New_ODMatrix.loc[New_ODMatrix['Region']==region]
-                pivot_table_WW = temp_frame.pivot_table(index='AfAOrigin', columns='AfADest', values='Total_Journeys', aggfunc=np.sum)
-                pivot_table_WW['Region'] = regionn
-
-            else: 
-                temp_frame = New_ODMatrix.loc[New_ODMatrix['Region']==region]
-                a = "pivot_table_"
-                regionn = str(region)
-                regionn = regionn.replace(' ','_')
-                pivot = temp_frame.pivot_table(index='AfAOrigin', columns='AfADest', values='Total_Journeys', aggfunc=np.sum)
-                pivot['Region'] = regionn
-                exec(a+regionn+" = pivot")
-
-    list_of_pivots = [pivot_table_WW, pivot_table_Eastern, pivot_table_North_West_and_Central, pivot_table_Scotland, pivot_table_Southern]
+            temp_frame = New_ODMatrix.loc[New_ODMatrix['Region'] == region]
+            pivot = temp_frame.pivot_table(index='AfAOrigin', columns='AfADest', values='Total_Journeys', aggfunc=np.sum)
+            pivot['Region'] = region
+            list_of_pivots = list_of_pivots.append(pivot)
     return list_of_pivots
 
 def map_input_stations(OD_df, upgrade_list):
@@ -129,8 +120,8 @@ def map_input_stations(OD_df, upgrade_list):
     OD_df.isna().sum()
 
     # Identify OD pairs where the score is 0 or Null. Save the number of removed records for traceability
-    dropped_origins = len(OD_df[(OD_df.origin_score < 1) | (OD_df.origin_score.isna())])
-    dropped_destinations = len(OD_df[(OD_df.destination_score < 1) | (OD_df.destination_score.isna())])
+    dropped_origins = len(OD_df.OriginTLC.loc[(OD_df.origin_score < 1) | (OD_df.origin_score.isna())].unique())
+    dropped_destinations = len(OD_df.DestinationTLC.loc[(OD_df.destination_score < 1) | (OD_df.destination_score.isna())].unique())
 
     # Removal of OD pairs where score is 0 or Null
     # OD_df = OD_df.drop(OD_df[(OD_df.origin_score < 1) | (OD_df.origin_score.isna())].index)
@@ -206,7 +197,7 @@ def into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of
     #grouped origin and destination are grouped dfs of the total journeys grouped by station
 
 
-    target = r"C:/Users/kharesa-kesa.spencer/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10_"+str(scenario)+'.xlsx'
+    target = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10_"+str(scenario)+'.xlsx'
 
     #copying the path to spreadsheet file as the target scenario
     shutil.copyfile(path_of_spreadsh, target)
@@ -231,10 +222,6 @@ def into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of
 
     kpi_df = kpi(New_ODMatrix, OD_df, scenario_desc)
 
-    #tester
-    for pivot_df in list_of_pivots:
-        pivot = pivot.append(pivot_df)
-
     #export back to Excel
     with pd.ExcelWriter(target, mode="a", engine="openpyxl", if_sheet_exists='replace') as writer:
 
@@ -242,7 +229,7 @@ def into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of
         kpi_df.to_excel(writer, sheet_name="KPI_Py", index=False)
         grouped_origin_df.to_excel(writer, sheet_name="Inaccessible O Accessi D")
         grouped_destination_df.to_excel(writer, sheet_name="Accessible O Inaccessi D")
-        pivot.to_excel(writer, sheet_name="Pivot")
+        list_of_pivots.to_excel(writer, sheet_name="Pivot")
 
 
     #done
@@ -253,7 +240,7 @@ def output_to_log(input_df, scenario):
     now = datetime.now()
     dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
 
-    with open(r"C:\Users\kharesa-kesa.spencer\OneDrive - Arup\NRAS Secondment\Automation\scenarios_output_log.txt", "a+") as file_object:
+    with open(r"C:\Users\jose.delapaznoguera\OneDrive - Arup\NRAS Secondment\Automation\scenarios_output_log.txt", "a+") as file_object:
         # Move read cursor to the start of file.
         file_object.seek(0)
         # If file is not empty then append '\n'
@@ -293,7 +280,7 @@ def make_kepler_input(final_df, path_of_spreadsh, scenario):
     kepler.to_csv(csv_outpath)
 
 def scenario_input():
-    input_path = "C:/Users/kharesa-kesa.spencer/OneDrive - Arup/NRAS Secondment/Automation/Inputs/Suggested Example Scenario for Jose.xlsx"
+    input_path = "C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Inputs/Suggested Example Scenario for Jose.xlsx"
     input_df = pd.read_excel(input_path, sheet_name="Diffs", engine='openpyxl', index_col=0)
     input_df.drop(['Station Name (MOIRA Name)', 'CP5', 'CP6'], axis=1, inplace=True)
     input_df.replace(to_replace="ignore", value=np.NaN, inplace=True)
@@ -316,8 +303,8 @@ def kpi(New_ODMatrix, OD_df, scenario_desc):
 
 #Pseudo-Main
 
-original = r"C:/Users/kharesa-kesa.spencer/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10.xlsx"
-clone = r"C:/Users/kharesa-kesa.spencer/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10_clone.xlsx"
+original = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10.xlsx"
+clone = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10_clone.xlsx"
 shutil.copyfile(original, clone)
 
 path_of_spreadsh = clone
