@@ -10,6 +10,7 @@ import os
 from operator import index
 from matplotlib.pyplot import polar
 import pandas as pd, numpy as np, glob, ast, openpyxl as xl, shutil, pyodbc, random, datetime
+import win32com.client as win32
 from openpyxl import Workbook
 from openpyxl import load_workbook
 from datetime import datetime
@@ -59,7 +60,7 @@ def get_DfT_Num_Cat(search_value):
         e = {'A':6, 'B':5, 'C':4, 'D':3, 'E':2, 'F':1, 'NaN': None}
         return e[search_value]
 
-def input_OD_Matrix(path_of_spreadsh):
+def input_OD_Matrix(st_cat_df):
     # inputs
     # connect to the access database
     conn = pyodbc.connect(
@@ -68,23 +69,15 @@ def input_OD_Matrix(path_of_spreadsh):
     query = 'select * from JoinCodes'
     OD_df = pd.read_sql(query, conn)
 
-    xl =  pd.read_excel(path_of_spreadsh, sheet_name="St_Cat", engine='openpyxl')
-    xl.rename(columns={'CRS Code': 'CRS_Code', 'Station Name (MOIRA Name)': 'Station_Name'}, inplace=True)
+    # join region column from the st_cat_df
+    region = st_cat_df[['CRS_Code','Region']]
 
-    #appending region to the OD Matrix
-    for stn in xl.CRS_Code:
-        if str(stn) == 'nan':
-            continue
-        if stn in OD_df.values:
-
-            # Update category. It is necessary to use the .item() method to the Series ,
-            OD_df.loc[OD_df.AfAOrigin == stn, 'Region'] = xl.loc[xl.CRS_Code == stn, 'Region'].item()
+    OD_df = pd.merge(left=OD_df, right=region, how='outer', left_on='OriginTLC', right_on='CRS_Code')
 
     return OD_df
 
 
 def map_input_stations(OD_df, upgrade_list):
-
 
     # Add numerical score based on a dictionary
     my_dict = {'0': 0, 'A': 1, 'B': 2, 'B1': 3, 'B2': 4, 'B3': 5, 'C': 6, 'Null': -1}
@@ -137,7 +130,6 @@ def map_input_stations(OD_df, upgrade_list):
         # Update destination category
         New_ODMatrix.loc[New_ODMatrix.DestinationTLC == str(tlc), 'AfADest'] = new_category
 
-
     # After the loop is competed, we need to use the map functions again to refresh the scores
     # Update origin score
     New_ODMatrix.origin_score = New_ODMatrix.AfAOrigin.map(my_dict)
@@ -180,23 +172,20 @@ def map_input_stations(OD_df, upgrade_list):
     return grouped_origin_df, grouped_destination_df, New_ODMatrix, pivot, base_pivot
 
 
-def into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_desc, pivot):
+def into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_desc, st_cat_df, pivot):
 
     # this method is to write to the new spreadsheet
     #St_Cat contains the updated station cateogries, the spreadsheet will calculate all the relevant fields
     #grouped origin and destination are grouped dfs of the total journeys grouped by station
 
-    
-    target = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.00_"+str(scenario)+'.xlsx'
+
+    target = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10_"+str(scenario)+'.xlsx'
 
     #copying the path to spreadsheet file as the target scenario
     shutil.copyfile(path_of_spreadsh, target)
 
     #reading from the spreadsheet
-    st_cat_df = pd.read_excel(path_of_spreadsh, sheet_name="St_Cat", engine='openpyxl')
-    st_cat_df.rename(columns={'CRS Code': 'CRS_Code', 'Station Name (MOIRA Name)': 'Station_Name'}, inplace=True)
-
-    st_cat_df = st_cat_df.loc[:,~st_cat_df.columns.duplicated()].copy()
+    new_st_cat_df = st_cat_df.copy()
 
     # Next steps upgrading the data in the clone to this current scenario:
     # 1. find the stations to be upgraded.
@@ -207,7 +196,7 @@ def into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of
         #if the current code is in the station category spreadsheet then upgrade st_cat_df with new category
         if code in st_cat_df['CRS_Code'].values:
             new_category = upgrade_list.loc[upgrade_list.TLC == code, 'New_Category'].item()
-            st_cat_df.loc[st_cat_df.CRS_Code == str(code), 'Including CP6 AfA'] = new_category
+            new_st_cat_df.loc[new_st_cat_df.CRS_Code == str(code), 'Including CP6 AfA'] = new_category
         else:
             continue
 
@@ -218,7 +207,7 @@ def into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of
     #export back to Excel
     with pd.ExcelWriter(target, mode="a", engine="openpyxl", if_sheet_exists='replace') as writer:
 
-        st_cat_df.to_excel(writer, sheet_name="St_Cat", index=False)
+        new_st_cat_df.to_excel(writer, sheet_name="St_Cat", index=False)
         kpi_df.to_excel(writer, sheet_name="KPI_Py", index=False)
         pivot.to_excel(writer, sheet_name="Pivot")
 
@@ -285,56 +274,74 @@ def scenario_input():
 def kpi(New_ODMatrix, OD_df, scenario_desc):
 
     #KPIs for the step-free spreadsheet
+    scen_name = scenario_desc.columns[0]
     step_free_jnys = New_ODMatrix.Total_Journeys.loc[(New_ODMatrix['jny_category'] == "A") | (New_ODMatrix['jny_category'] == "B1")].sum()
     step_free_jnys_pctg = step_free_jnys / OD_df.Total_Journeys.sum()
     B3_or_C_stns = New_ODMatrix.Total_Journeys.loc[(New_ODMatrix['jny_category'] == "B3") | (New_ODMatrix['jny_category'] == "C")].sum()
     B3_or_C_stns_pctg = B3_or_C_stns / OD_df.Total_Journeys.sum()
-    my_dict = {'scenario_desc': scenario_desc.loc['Description'], 'scenario_notes': scenario_desc.loc['Notes'],'step_free_journeys_%': step_free_jnys_pctg, 'B3_or_C_stations_&': B3_or_C_stns_pctg}
+    my_dict = {'scenario_name': scen_name, 'scenario_desc': scenario_desc.loc['Description'], 'scenario_notes': scenario_desc.loc['Notes'],'step_free_journeys_%': step_free_jnys_pctg, 'B3_or_C_stations_%': B3_or_C_stns_pctg}
     kpi_df = pd.DataFrame(data=my_dict)
     return kpi_df
 
 
 #Pseudo-Main
-#first clone to have the spreadsheet path for the appending regions 
 
-original = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.00.xlsx"
-clone = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.00_clone.xlsx"
+original = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10.xlsx"
+clone = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10_clone.xlsx"
 shutil.copyfile(original, clone)
 
 path_of_spreadsh = clone
 
 all_scen_df, input_df =scenario_input()
-OD_df = input_OD_Matrix(path_of_spreadsh)
+
+st_cat_df = pd.read_excel(path_of_spreadsh, sheet_name="St_Cat", engine='openpyxl')
+st_cat_df.rename(columns={'CRS Code': 'CRS_Code', 'Station Name (MOIRA Name)': 'Station_Name'}, inplace=True)
+st_cat_df = st_cat_df.loc[:,~st_cat_df.columns.duplicated()].copy()
+
+OD_df = input_OD_Matrix(st_cat_df)
 
 for scenario in input_df.columns:
-    # clones spreadsheet as to not affect the original when writing to the sheet
-    original = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.00.xlsx"
-    clone = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.00_clone.xlsx"
-    shutil.copyfile(original, clone)
+    if (input_df[scenario].values == 0).all():
+        print(f'Empty scenario. {scenario} Skipped')
+        continue
+    else:
+        # clones spreadsheet as to not affect the original when writing to the sheet
+        print(f'{scenario} Started')
+        shutil.copyfile(original, clone)
 
-    scenario_desc = pd.DataFrame(all_scen_df.loc[scenario][['Description', 'Notes']])
-    path_of_spreadsh = clone
+        scenario_desc = pd.DataFrame(all_scen_df.loc[scenario][['Description', 'Notes']])
+        path_of_spreadsh = clone
 
-    # base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", engine='openpyxl')
-    # with the option of selecting table from sheet
-    # base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", header=2, usecols="B:AS", engine='openpyxl')
-    # alt_any = pd.read_excel(path_of_spreadsh, sheet_name="Alt_Any_20", header=4, usecols="B:F", engine='openpyxl')
+        # base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", engine='openpyxl')
+        # with the option of selecting table from sheet
+        # base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", header=2, usecols="B:AS", engine='openpyxl')
+        # alt_any = pd.read_excel(path_of_spreadsh, sheet_name="Alt_Any_20", header=4, usecols="B:F", engine='openpyxl')
 
-    # base_df.columns = [c.replace(' ', '_') for c in base_df.columns]
-    # alt_any.columns = [c.replace(' ', '_') for c in alt_any.columns]
+        # base_df.columns = [c.replace(' ', '_') for c in base_df.columns]
+        # alt_any.columns = [c.replace(' ', '_') for c in alt_any.columns]
 
-    upgrade_list = pd.DataFrame()
-    upgrade_list['TLC'] = input_df.index
-    upgrade_list['New_Category'] = input_df[scenario].values
-    upgrade_list.dropna(inplace=True)
-    upgrade_list.reset_index()
-    grouped_origin_df, grouped_destination_df, New_ODMatrix, pivot, base_pivot = map_input_stations(OD_df, upgrade_list, path_of_spreadsh)
-    ##
-    output_to_log(upgrade_list, str(scenario))
-    #
-    into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_desc, pivot)
+        upgrade_list = pd.DataFrame()
+        upgrade_list['TLC'] = input_df.index
+        upgrade_list['New_Category'] = input_df[scenario].values
+        upgrade_list.dropna(inplace=True)
+        upgrade_list.reset_index()
+        grouped_origin_df, grouped_destination_df, New_ODMatrix, pivot, base_pivot = map_input_stations(OD_df, upgrade_list)
+        ##
+        output_to_log(upgrade_list, str(scenario))
+        #
+        into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_desc, st_cat_df, pivot)
 
-    print(f"Scenario {scenario} run successfully. {len(upgrade_list)} stations were upgraded")
+        # Open the Excel file so the formulas are calculated
+        # target = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10_" + str(
+        #     scenario) + '.xlsx'
+        # excel = win32.gencache.EnsureDispatch('Excel.Application')
+        # workbook = excel.Workbooks.Open(target)
+        # # this must be the absolute path (r'C:/abc/def/ghi')
+        # workbook.Save()
+        # workbook.Close()
+        # excel.Quit()
+
+        print(f"Scenario {scenario} run successfully. {len(upgrade_list)} stations were upgraded")
 
 os.remove(clone)
 print(f"Process finished successfully")
