@@ -98,7 +98,6 @@ def regional_pivots(New_ODMatrix):
                 pivot = temp_frame.pivot_table(index='AfAOrigin', columns='AfADest', values='Total_Journeys', aggfunc=np.sum)
                 pivot['Region'] = regionn
                 exec(a+regionn+" = pivot")
-                print((a+regionn+" = pivot"))
 
     list_of_pivots = [pivot_table_WW, pivot_table_Eastern, pivot_table_North_West_and_Central, pivot_table_Scotland, pivot_table_Southern]
     return list_of_pivots
@@ -175,6 +174,8 @@ def map_input_stations(OD_df, upgrade_list):
     base_pivot = OD_df.pivot_table(index='AfAOrigin', columns='AfADest', values='Total_Journeys', aggfunc=np.sum)
     pivot = New_ODMatrix.pivot_table(index='AfAOrigin', columns='AfADest', values='Total_Journeys', aggfunc=np.sum)
     #pivot by region ...
+    #tester
+    pivot['Region'] ='National'
 
     # dataframes where only the origin or the destination are accessible
     OD_df_ass_origin = OD_df
@@ -230,22 +231,19 @@ def into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of
 
     kpi_df = kpi(New_ODMatrix, OD_df, scenario_desc)
 
+    #tester
+    for pivot_df in list_of_pivots:
+        pivot = pivot.append(pivot_df)
+
     #export back to Excel
     with pd.ExcelWriter(target, mode="a", engine="openpyxl", if_sheet_exists='replace') as writer:
 
         new_st_cat_df.to_excel(writer, sheet_name="St_Cat", index=False)
         kpi_df.to_excel(writer, sheet_name="KPI_Py", index=False)
-        pivot.to_excel(writer, sheet_name="Pivot")
-        row = 7
-        spaces = 1
-        for pivot_df in list_of_pivots:
-            pivot_df.to_excel(writer,sheet_name='Pivot',startrow=row , startcol=0)   
-            row = row + len(pivot_df.index) + spaces + 1
-            writer.save()
-
-
         grouped_origin_df.to_excel(writer, sheet_name="Inaccessible O Accessi D")
         grouped_destination_df.to_excel(writer, sheet_name="Accessible O Inaccessi D")
+        pivot.to_excel(writer, sheet_name="Pivot")
+
 
     #done
 
