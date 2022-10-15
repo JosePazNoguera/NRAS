@@ -17,6 +17,12 @@ from datetime import datetime
 
 from pandas import DataFrame
 
+# Numerical score based on a dictionary
+my_dict = {'0': 0, 'A': 1, 'B': 2, 'B1': 3, 'B2': 4, 'B3': 5, 'C': 6, 'Null': -1}
+# Use a second mapping to categorise the journeys. The journey category represents the worst score of the origin
+# and destination scores
+my_dict_2 = {1: 'A', 2: 'B', 3: 'B1', 4: 'B2', 5: 'B3', 6: 'C'}
+
 
 def get_orr_step_free_category(search_value):
     orr = {'B': 'Bottom', 'B2': 'Bottom', 'B3': 'Middle', 'C': 'Top'}
@@ -75,6 +81,37 @@ def input_OD_Matrix(st_cat_df):
     OD_df = pd.merge(left=OD_df, right=region, how='outer', left_on='OriginTLC', right_on='CRS_Code')
     missing_regions = len(OD_df.OriginTLC.loc[OD_df.Region.isna()].unique())
     print(f'{missing_regions} origins could not be mapped to any region')
+
+    # Add Total journeys: sum of standard and 1st class
+    OD_df['Total_Journeys'] = OD_df['STDJOURNEYS'] + OD_df['1stJOURNEYS']
+
+    origin_score = OD_df.AfAOrigin.map(my_dict)
+    destination_score = OD_df.AfADest.map(my_dict)
+    OD_df['origin_score'] = origin_score
+    OD_df['destination_score'] = destination_score
+
+    # Categorize the journeys by looking at the maximum numerical score (worst) of the origin and destination stations
+    jny_score = np.maximum(OD_df.origin_score, OD_df.destination_score)
+    OD_df['jny_score'] = jny_score
+
+    jny_category = OD_df.jny_score.map(my_dict_2)
+    OD_df['jny_category'] = jny_category
+    OD_df['concat_categories'] = OD_df.AfAOrigin + OD_df.AfADest
+
+    ## TEST --> Look at tests.py
+    OD_df.isna().sum()
+
+    # Identify OD pairs where the score is 0 or Null. Save the number of removed records for traceability
+    dropped_origins = len(OD_df.OriginTLC.loc[(OD_df.origin_score < 1) | (OD_df.origin_score.isna())].unique())
+    dropped_destinations = len(OD_df.DestinationTLC.loc[(OD_df.destination_score < 1) | (OD_df.destination_score.isna())].unique())
+
+    # Removal of OD pairs where score is 0 or Null
+    # OD_df = OD_df.drop(OD_df[(OD_df.origin_score < 1) | (OD_df.origin_score.isna())].index)
+    # OD_df = OD_df.drop(OD_df[(OD_df.destination_score < 1) | (OD_df.destination_score.isna())].index)
+
+    print(
+        f"A total of {dropped_origins:n} origins and {dropped_destinations:n} destinations were invalid and not included in the analysis.")
+
     return OD_df
 
 def regional_pivots(New_ODMatrix):
@@ -94,41 +131,6 @@ def regional_pivots(New_ODMatrix):
     return list_of_pivots
 
 def map_input_stations(OD_df, upgrade_list):
-
-    # Add numerical score based on a dictionary
-    my_dict = {'0': 0, 'A': 1, 'B': 2, 'B1': 3, 'B2': 4, 'B3': 5, 'C': 6, 'Null': -1}
-    origin_score = OD_df.AfAOrigin.map(my_dict)
-    destination_score = OD_df.AfADest.map(my_dict)
-    OD_df['origin_score'] = origin_score
-    OD_df['destination_score'] = destination_score
-
-    # Add Total journeys: sum of standard and 1st class
-    OD_df['Total_Journeys'] = OD_df['STDJOURNEYS'] + OD_df['1stJOURNEYS']
-
-    # Categorize the journeys by looking at the maximum numerical score (worst) of the origin and destination stations
-    jny_score = np.maximum(OD_df.origin_score, OD_df.destination_score)
-    OD_df['jny_score'] = jny_score
-
-    # Use a second mapping to categorise the journeys. The journey category represents the worst score of the origin
-    # and destination scores
-    my_dict_2 = {1: 'A', 2: 'B', 3: 'B1', 4: 'B2', 5: 'B3', 6: 'C'}
-    jny_category = OD_df.jny_score.map(my_dict_2)
-    OD_df['jny_category'] = jny_category
-    OD_df['concat_categories'] = OD_df.AfAOrigin + OD_df.AfADest
-
-    ## TEST --> Look at tests.py
-    OD_df.isna().sum()
-
-    # Identify OD pairs where the score is 0 or Null. Save the number of removed records for traceability
-    dropped_origins = len(OD_df.OriginTLC.loc[(OD_df.origin_score < 1) | (OD_df.origin_score.isna())].unique())
-    dropped_destinations = len(OD_df.DestinationTLC.loc[(OD_df.destination_score < 1) | (OD_df.destination_score.isna())].unique())
-
-    # Removal of OD pairs where score is 0 or Null
-    # OD_df = OD_df.drop(OD_df[(OD_df.origin_score < 1) | (OD_df.origin_score.isna())].index)
-    # OD_df = OD_df.drop(OD_df[(OD_df.destination_score < 1) | (OD_df.destination_score.isna())].index)
-
-    print(
-        f"A total of {dropped_origins:n} origins and {dropped_destinations:n} destinations were invalid and not included in the analysis.")
 
     # A copy of the OD matrix is created before upgrading any values
     New_ODMatrix = OD_df.copy()
@@ -190,7 +192,7 @@ def map_input_stations(OD_df, upgrade_list):
     return grouped_origin_df, grouped_destination_df, New_ODMatrix, pivot, base_pivot
 
 
-def into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_desc, st_cat_df, pivot, list_of_pivots):
+def into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_desc, st_cat_df, list_of_pivots):
 
     # this method is to write to the new spreadsheet
     #St_Cat contains the updated station cateogries, the spreadsheet will calculate all the relevant fields
@@ -317,7 +319,28 @@ st_cat_df = st_cat_df.loc[:,~st_cat_df.columns.duplicated()].copy()
 
 OD_df = input_OD_Matrix(st_cat_df)
 
+# Base scenario run
+scenario = 'CP6'
+scenario_desc = pd.DataFrame(all_scen_df.loc[scenario][['Description', 'Notes']])
+print(f'{scenario} Started')
+target = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10_" + str(
+    scenario) + '.xlsx'
+
+shutil.copyfile(path_of_spreadsh, target)
+kpi_df = kpi(OD_df, OD_df, scenario_desc)
+list_of_pivots = regional_pivots(OD_df)
+
+with pd.ExcelWriter(target, mode="a", engine="openpyxl", if_sheet_exists='replace') as writer:
+
+    kpi_df.to_excel(writer, sheet_name="KPI_Py", index=False)
+    list_of_pivots.to_excel(writer, sheet_name="Pivot")
+
+print(f"Base scenario run successfully.")
+
+
+# Run all scenarios
 for scenario in input_df.columns:
+
     if (input_df[scenario].values == 0).all():
         print(f'Empty scenario. {scenario} Skipped')
         continue
@@ -344,12 +367,11 @@ for scenario in input_df.columns:
         upgrade_list.reset_index()
         grouped_origin_df, grouped_destination_df, New_ODMatrix, pivot, base_pivot = map_input_stations(OD_df, upgrade_list)
         list_of_pivots = regional_pivots(New_ODMatrix)
-        list_of_pivots.append(pivot)
-        
+
         ##
         output_to_log(upgrade_list, str(scenario))
         #
-        into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_desc, st_cat_df, pivot, list_of_pivots)
+        into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_desc, st_cat_df, list_of_pivots)
 
         # Open the Excel file so the formulas are calculated
         # target = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10_" + str(
