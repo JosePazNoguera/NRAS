@@ -127,6 +127,7 @@ def regional_pivots(New_ODMatrix):
             temp_frame = New_ODMatrix.loc[New_ODMatrix['Region'] == region]
             pivot = temp_frame.pivot_table(index='AfAOrigin', columns='AfADest', values='Total_Journeys', aggfunc=np.sum)
             pivot['Region'] = region
+            pivot['Scenario'] = scenario
             list_of_pivots = list_of_pivots.append(pivot)
     return list_of_pivots
 
@@ -222,7 +223,7 @@ def into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of
 
     # Create the kpi's that will be saved in the spreadsheet
 
-    kpi_df = kpi(New_ODMatrix, OD_df, scenario_desc)
+    kpi_df = regional_kpi(New_ODMatrix, scenario_desc)
 
     #export back to Excel
     with pd.ExcelWriter(target, mode="a", engine="openpyxl", if_sheet_exists='replace') as writer:
@@ -233,6 +234,14 @@ def into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of
         grouped_destination_df.to_excel(writer, sheet_name="Accessible O Inaccessi D")
         list_of_pivots.to_excel(writer, sheet_name="Pivot")
 
+        # Open the Excel file so the formulas are calculated
+        excel = win32.gencache.EnsureDispatch('Excel.Application')
+        excel.DisplayAlerts = False
+        workbook = excel.Workbooks.Open(target)
+        # this must be the absolute path (r'C:/abc/def/ghi')
+        workbook.RefreshAll()
+        workbook.Close()
+        excel.Quit()
 
     #done
 
@@ -290,17 +299,58 @@ def scenario_input():
 
     return all_scen_df, input_df
 
-def kpi(New_ODMatrix, OD_df, scenario_desc):
+# def kpi(New_ODMatrix, OD_df, scenario_desc):
+#
+#     #KPIs for the step-free spreadsheet
+#     scen_name = scenario_desc.columns[0]
+#     step_free_jnys = New_ODMatrix.Total_Journeys.loc[(New_ODMatrix['jny_category'] == "A") | (New_ODMatrix['jny_category'] == "B1")].sum()
+#     step_free_jnys_pctg = step_free_jnys / OD_df.Total_Journeys.sum()
+#     B3_or_C_stns = New_ODMatrix.Total_Journeys.loc[(New_ODMatrix['jny_category'] == "B3") | (New_ODMatrix['jny_category'] == "C")].sum()
+#     B3_or_C_stns_pctg = B3_or_C_stns / OD_df.Total_Journeys.sum()
+#     my_dict = {'scenario_name': scen_name, 'scenario_desc': scenario_desc.loc['Description'], 'scenario_notes': scenario_desc.loc['Notes'],'step_free_journeys_%': step_free_jnys_pctg, 'B3_or_C_stations_%': B3_or_C_stns_pctg}
+#     kpi_df = pd.DataFrame(data=my_dict)
+#
+#     return kpi_df
 
-    #KPIs for the step-free spreadsheet
+def regional_kpi(New_ODMatrix, scenario_desc):
+
+    list_of_kpi = pd.DataFrame()
     scen_name = scenario_desc.columns[0]
-    step_free_jnys = New_ODMatrix.Total_Journeys.loc[(New_ODMatrix['jny_category'] == "A") | (New_ODMatrix['jny_category'] == "B1")].sum()
-    step_free_jnys_pctg = step_free_jnys / OD_df.Total_Journeys.sum()
-    B3_or_C_stns = New_ODMatrix.Total_Journeys.loc[(New_ODMatrix['jny_category'] == "B3") | (New_ODMatrix['jny_category'] == "C")].sum()
-    B3_or_C_stns_pctg = B3_or_C_stns / OD_df.Total_Journeys.sum()
-    my_dict = {'scenario_name': scen_name, 'scenario_desc': scenario_desc.loc['Description'], 'scenario_notes': scenario_desc.loc['Notes'],'step_free_journeys_%': step_free_jnys_pctg, 'B3_or_C_stations_%': B3_or_C_stns_pctg}
+    for region in New_ODMatrix['Region'].unique():
+
+        if str(region) == '0':
+            continue
+        if str(region) == 'nan':
+            continue
+        else:
+            temp_frame = New_ODMatrix.loc[New_ODMatrix['Region'] == region]
+            Cat_A_jnys = temp_frame.Total_Journeys.loc[(temp_frame['jny_category'] == "A")].sum()
+            Cat_B1_jnys = temp_frame.Total_Journeys.loc[(temp_frame['jny_category'] == "B1")].sum()
+            step_free_jnys_pctg = (Cat_A_jnys + Cat_B1_jnys) / temp_frame.Total_Journeys.sum()
+
+            B3_stns = temp_frame.Total_Journeys.loc[(temp_frame['jny_category'] == "B3")].sum()
+            C_stns = temp_frame.Total_Journeys.loc[(temp_frame['jny_category'] == "C")].sum()
+            B3_or_C_stns_pctg = (B3_stns + C_stns) / temp_frame.Total_Journeys.sum()
+            my_dict = {'scenario_name': scen_name, 'scenario_desc': scenario_desc.loc['Description'],
+                       'scenario_notes': scenario_desc.loc['Notes'], 'step_free_journeys_%': step_free_jnys_pctg,
+                       'B3_or_C_stations_%': B3_or_C_stns_pctg, 'Region': region}
+            kpi_df = pd.DataFrame(data=my_dict)
+            list_of_kpi = list_of_kpi.append(kpi_df)
+
+    # National results
+    Cat_A_jnys = New_ODMatrix.Total_Journeys.loc[(New_ODMatrix['jny_category'] == "A")].sum()
+    Cat_B1_jnys = New_ODMatrix.Total_Journeys.loc[(New_ODMatrix['jny_category'] == "B1")].sum()
+    step_free_jnys_pctg = (Cat_A_jnys + Cat_B1_jnys) / New_ODMatrix.Total_Journeys.sum()
+    B3_stns = New_ODMatrix.Total_Journeys.loc[(New_ODMatrix['jny_category'] == "B3")].sum()
+    C_stns = New_ODMatrix.Total_Journeys.loc[(New_ODMatrix['jny_category'] == "C")].sum()
+    B3_or_C_stns_pctg = (B3_stns + C_stns) / New_ODMatrix.Total_Journeys.sum()
+    my_dict = {'scenario_name': scen_name, 'scenario_desc': scenario_desc.loc['Description'],
+               'scenario_notes': scenario_desc.loc['Notes'], 'step_free_journeys_%': step_free_jnys_pctg,
+               'B3_or_C_stations_%': B3_or_C_stns_pctg, 'Region': 'All'}
     kpi_df = pd.DataFrame(data=my_dict)
-    return kpi_df
+    list_of_kpi = list_of_kpi.append(kpi_df)
+
+    return list_of_kpi
 
 
 #Pseudo-Main
@@ -327,7 +377,7 @@ target = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automati
     scenario) + '.xlsx'
 
 shutil.copyfile(path_of_spreadsh, target)
-kpi_df = kpi(OD_df, OD_df, scenario_desc)
+kpi_df = regional_kpi(OD_df, scenario_desc)
 list_of_pivots = regional_pivots(OD_df)
 
 with pd.ExcelWriter(target, mode="a", engine="openpyxl", if_sheet_exists='replace') as writer:
@@ -335,14 +385,28 @@ with pd.ExcelWriter(target, mode="a", engine="openpyxl", if_sheet_exists='replac
     kpi_df.to_excel(writer, sheet_name="KPI_Py", index=False)
     list_of_pivots.to_excel(writer, sheet_name="Pivot")
 
+    # Open the Excel file so the formulas are calculated
+    excel = win32.gencache.EnsureDispatch('Excel.Application')
+    excel.DisplayAlerts = False
+    workbook = excel.Workbooks.Open(target)
+    # this must be the absolute path (r'C:/abc/def/ghi')
+    workbook.RefreshAll()
+    # workbook.Save() will update the formulas but it brings a dialog box which stops the execution
+    # of the code until the user selects a level of sensitivity (Public, General, Confidential, etc)
+    workbook.Close()
+    excel.Quit()
+
 print(f"Base scenario run successfully.")
 
 
 # Run all scenarios
 for scenario in input_df.columns:
 
-    if (input_df[scenario].values == 0).all():
+    if input_df[scenario].isnull().all():
         print(f'Empty scenario. {scenario} Skipped')
+        continue
+    if (input_df[scenario] == 0).all():
+        print(f'This scenario has no changes. {scenario} Skipped')
         continue
     else:
         # clones spreadsheet as to not affect the original when writing to the sheet
@@ -374,13 +438,18 @@ for scenario in input_df.columns:
         into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_desc, st_cat_df, list_of_pivots)
 
         # Open the Excel file so the formulas are calculated
+        # Source:
+        # https://stackoverflow.com/questions/27226407/dialog-box-handling-in-excel-through-python
+
         # target = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10_" + str(
         #     scenario) + '.xlsx'
-        # excel = win32.gencache.EnsureDispatch('Excel.Application')
-        # workbook = excel.Workbooks.Open(target)
         # # this must be the absolute path (r'C:/abc/def/ghi')
-        # workbook.Save()
-        # workbook.Close()
+
+        # excel = win32com.client.DispatchEx("Excel.Application")
+        # excel.DisplayAlerts = False
+        # workbook = excel.Workbooks.Open(target)
+        # workbook.RefreshAll()
+        # excel.Save()
         # excel.Quit()
 
         print(f"Scenario {scenario} run successfully. {len(upgrade_list)} stations were upgraded")
