@@ -3,26 +3,37 @@ Authors: Kharesa-Kesa and Jose
 This script will attempt to replicate the actions of the spreadsheet generating the all_stations tab
 '''
 
-# from asyncio.unix_events import _UnixSelectorEventLoop
-# from email import header
-#from macpath import split
+
 import os
-from operator import index
-from matplotlib.pyplot import polar
+
 import pandas as pd, numpy as np, glob, ast, openpyxl as xl, shutil, pyodbc, random, datetime
 import win32com.client as win32
-from openpyxl import Workbook
-from openpyxl import load_workbook
+
 from datetime import datetime
 
-from pandas import DataFrame
+## GLOBAL VARIABLES ###
 
 # Numerical score based on a dictionary
 my_dict = {'0': 0, 'A': 1, 'B': 2, 'B1': 3, 'B2': 4, 'B3': 5, 'C': 6, 'Null': -1}
-# Use a second mapping to categorise the journeys. The journey category represents the worst score of the origin
+
+# second mapping to categorise the journeys. The journey category represents the worst score of the origin
 # and destination scores
 my_dict_2 = {1: 'A', 2: 'B', 3: 'B1', 4: 'B2', 5: 'B3', 6: 'C'}
 
+# Access DB
+access_DB = r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Inputs/MOIRAOctober22.accdb;'
+
+# input_df
+input_path = "C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Inputs/Suggested Example Scenario for Jose.xlsx"
+
+original = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10.xlsx"
+clone = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10_clone.xlsx"
+
+# Output to log
+output_log_path = r"C:\Users\jose.delapaznoguera\OneDrive - Arup\NRAS Secondment\Automation\scenarios_output_log.txt"
+
+# Output csv folder path (for Kepler)
+kepler_path = r"C:\Users\jose.delapaznoguera\OneDrive - Arup\NRAS Secondment\Automation\Kepler_layers"
 
 def get_orr_step_free_category(search_value):
     orr = {'B': 'Bottom', 'B2': 'Bottom', 'B3': 'Middle', 'C': 'Top'}
@@ -67,10 +78,16 @@ def get_DfT_Num_Cat(search_value):
         return e[search_value]
 
 def input_OD_Matrix(st_cat_df):
-    # inputs
+    """ This method creates the Origin-Destination matrix using the Access database as an input.
+    The method also merges the regions for each origin station using the Three Letter Code from the st_cat_df, a
+    dataframe created from the St_Cat tab in the Step-free scoring spreadsheet.
+    ...
+
+    :param st_cat_df: Table containing all station categories in the base scenario (Control Period 6).
+    """
+
     # connect to the access database
-    conn = pyodbc.connect(
-        r'Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Inputs/MOIRAOctober22.accdb;')
+    conn = pyodbc.connect(access_DB)
 
     query = 'select * from JoinCodes'
     OD_df = pd.read_sql(query, conn)
@@ -114,25 +131,17 @@ def input_OD_Matrix(st_cat_df):
 
     return OD_df
 
-def regional_pivots(New_ODMatrix):
-
-    list_of_pivots = pd.DataFrame()
-    for region in New_ODMatrix['Region'].unique():
-
-        if str(region) == '0':
-            continue
-        if str(region) == 'nan':
-            continue
-        else:
-            temp_frame = New_ODMatrix.loc[New_ODMatrix['Region'] == region]
-            pivot = temp_frame.pivot_table(index='AfAOrigin', columns='AfADest', values='Total_Journeys', aggfunc=np.sum)
-            pivot['Region'] = region
-            pivot['Scenario'] = scenario
-            list_of_pivots = list_of_pivots.append(pivot)
-    return list_of_pivots
-
 def map_input_stations(OD_df, upgrade_list):
+    """ This method takes the OD Matrix generated previously and the upgrade_list where the user
+      specifies the new categories for all stations in the country under each scenario. This list must contain all the
+      stations in the network, not just those that are upgraded.
+    ...
 
+    :param OD_df: OD Matrix created by the input_OD_Matrix method
+
+    :param upgrade_list: This list contains all stations and station categories in the country under each scenario.
+    The list is generated from the input_df.
+    """
     # A copy of the OD matrix is created before upgrading any values
     New_ODMatrix = OD_df.copy()
 
@@ -192,127 +201,39 @@ def map_input_stations(OD_df, upgrade_list):
 
     return grouped_origin_df, grouped_destination_df, New_ODMatrix, pivot, base_pivot
 
+def regional_pivots(New_ODMatrix):
+    """ This method creates a set of OD Matrices for each region using the .pivot_table method. This pivot uses the
+     OD matrix as an input and the step-free categories as row and column headers. The output is a dataframe containing
+     all regions.
+    ...
 
-def into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_desc, st_cat_df, list_of_pivots):
+    :param New_ODMatrix: Dataframe containing the national Origin-Destination matrix for Great Britain. The format of
+    this matrix requires stations
+    """
 
-    # this method is to write to the new spreadsheet
-    #St_Cat contains the updated station cateogries, the spreadsheet will calculate all the relevant fields
-    #grouped origin and destination are grouped dfs of the total journeys grouped by station
+    list_of_pivots = pd.DataFrame()
+    for region in New_ODMatrix['Region'].unique():
 
-
-    target = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10_"+str(scenario)+'.xlsx'
-
-    #copying the path to spreadsheet file as the target scenario
-    shutil.copyfile(path_of_spreadsh, target)
-
-    #reading from the spreadsheet
-    new_st_cat_df = st_cat_df.copy()
-
-    # Next steps upgrading the data in the clone to this current scenario:
-    # 1. find the stations to be upgraded.
-    for code in upgrade_list.TLC:
-        if str(code) == 'nan':
+        if str(region) == '0':
             continue
-
-        #if the current code is in the station category spreadsheet then upgrade st_cat_df with new category
-        if code in st_cat_df['CRS_Code'].values:
-            new_category = upgrade_list.loc[upgrade_list.TLC == code, 'New_Category'].item()
-            new_st_cat_df.loc[new_st_cat_df.CRS_Code == str(code), 'Including CP6 AfA'] = new_category
+        if str(region) == 'nan':
+            continue
         else:
-            continue
-
-    # Create the kpi's that will be saved in the spreadsheet
-
-    kpi_df = regional_kpi(New_ODMatrix, scenario_desc)
-
-    #export back to Excel
-    with pd.ExcelWriter(target, mode="a", engine="openpyxl", if_sheet_exists='replace') as writer:
-
-        new_st_cat_df.to_excel(writer, sheet_name="St_Cat", index=False)
-        kpi_df.to_excel(writer, sheet_name="KPI_Py", index=False)
-        grouped_origin_df.to_excel(writer, sheet_name="Inaccessible O Accessi D")
-        grouped_destination_df.to_excel(writer, sheet_name="Accessible O Inaccessi D")
-        list_of_pivots.to_excel(writer, sheet_name="Pivot")
-
-        # Open the Excel file so the formulas are calculated
-        excel = win32.gencache.EnsureDispatch('Excel.Application')
-        excel.DisplayAlerts = False
-        workbook = excel.Workbooks.Open(target)
-        # this must be the absolute path (r'C:/abc/def/ghi')
-        workbook.RefreshAll()
-        workbook.Close()
-        excel.Quit()
-
-    #done
-
-
-def output_to_log(input_df, scenario):
-
-    now = datetime.now()
-    dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
-
-    with open(r"C:\Users\jose.delapaznoguera\OneDrive - Arup\NRAS Secondment\Automation\scenarios_output_log.txt", "a+") as file_object:
-        # Move read cursor to the start of file.
-        file_object.seek(0)
-        # If file is not empty then append '\n'
-        data = file_object.read(100)
-        if len(data) > 0 :
-            file_object.write("\n")
-        # Append text at the end of file
-        file_object.write("\n")
-        line = 'Scenario number: ' + str(scenario) + ' run at ' + dt_string
-        file_object.write(line)
-        file_object.write("\n")
-        file_object.write(str(input_df))
-        file_object.write("\n")
-
-def make_kepler_input(final_df, path_of_spreadsh, scenario):
-
-    #naming this dataframe kepler as it will serve as the stations.csv file for kepler
-    kepler = pd.read_excel(path_of_spreadsh, sheet_name="Coordinates", header=2, usecols="B:F", engine='openpyxl')
-
-    #running over the final_df dafeframe and adding the new categories and other columns to it
-    for code in final_df.Unique_Code:
-        if str(code) == 'nan':
-            continue
-        if code in kepler.values:
-
-            # Update category. It is necessary to use the .item() method to the Series ,
-            kepler.loc[kepler.CRSCode == str(code), 'Step Free Category'] = final_df.loc[final_df.Unique_Code == code, 'ORR_Step_Free_Category'].item()
-            #kepler.loc[kepler.CRSCode == str(code), 'DfT Category']  = final_df.loc[final_df.Unique_Code == code, 'Dft_Category'].item()
-            kepler.loc[kepler.CRSCode == str(code), 'Journeys Unlocked']  = final_df.loc[final_df.Unique_Code == code, '2019_Total_Unlocked_Journeys'].item()
-            kepler.loc[kepler.CRSCode == str(code), 'Connectivity Rank']  = final_df.loc[final_df.Unique_Code == code, '2019_Connectivity_Rank'].item()
-            kepler.loc[kepler.CRSCode == str(code), 'Isolation Score']  = final_df.loc[final_df.Unique_Code == code, 'Isolation_and_Current_Access_Matrix_Outcome'].item()
-            kepler.loc[kepler.CRSCode == str(code), 'Final Matrix Outcome']  = final_df.loc[final_df.Unique_Code == code, 'Final_Outcome'].item()
-            #kepler.loc[kepler.CRSCode == str(code), 'DfT Category A to F']  = get_DfT_Num_Cat(final_df.loc[final_df.Unique_Code == code, 'Dft_Category'].item())
-
-    #Exporting the file as a csv
-    csv_outpath = 'Stations_sc_'+str(scenario)
-    kepler.to_csv(csv_outpath)
-
-def scenario_input():
-    input_path = "C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Inputs/Suggested Example Scenario for Jose.xlsx"
-    input_df = pd.read_excel(input_path, sheet_name="Diffs", engine='openpyxl', index_col=0)
-    input_df.drop(['Station Name (MOIRA Name)', 'CP5', 'CP6'], axis=1, inplace=True)
-    input_df.replace(to_replace="ignore", value=np.NaN, inplace=True)
-    all_scen_df = pd.read_excel(input_path, sheet_name="Scenario Master", engine='openpyxl', index_col=0)
-
-    return all_scen_df, input_df
-
-# def kpi(New_ODMatrix, OD_df, scenario_desc):
-#
-#     #KPIs for the step-free spreadsheet
-#     scen_name = scenario_desc.columns[0]
-#     step_free_jnys = New_ODMatrix.Total_Journeys.loc[(New_ODMatrix['jny_category'] == "A") | (New_ODMatrix['jny_category'] == "B1")].sum()
-#     step_free_jnys_pctg = step_free_jnys / OD_df.Total_Journeys.sum()
-#     B3_or_C_stns = New_ODMatrix.Total_Journeys.loc[(New_ODMatrix['jny_category'] == "B3") | (New_ODMatrix['jny_category'] == "C")].sum()
-#     B3_or_C_stns_pctg = B3_or_C_stns / OD_df.Total_Journeys.sum()
-#     my_dict = {'scenario_name': scen_name, 'scenario_desc': scenario_desc.loc['Description'], 'scenario_notes': scenario_desc.loc['Notes'],'step_free_journeys_%': step_free_jnys_pctg, 'B3_or_C_stations_%': B3_or_C_stns_pctg}
-#     kpi_df = pd.DataFrame(data=my_dict)
-#
-#     return kpi_df
+            temp_frame = New_ODMatrix.loc[New_ODMatrix['Region'] == region]
+            pivot = temp_frame.pivot_table(index='AfAOrigin', columns='AfADest', values='Total_Journeys', aggfunc=np.sum)
+            pivot['Region'] = region
+            pivot['Scenario'] = scenario
+            list_of_pivots = list_of_pivots.append(pivot)
+    return list_of_pivots
 
 def regional_kpi(New_ODMatrix, scenario_desc):
+    """ This method creates a set of key performance indicators from the OD Matrix for each scenario and region.
+    ...
+
+        :param New_ODMatrix: Dataframe containing the national Origin-Destination matrix for Great Britain. The format of
+        this matrix requires stations
+        :param scenario_desc: scenario description provided by the user. Taken from the input template
+    """
 
     list_of_kpi = pd.DataFrame()
     scen_name = scenario_desc.columns[0]
@@ -352,11 +273,146 @@ def regional_kpi(New_ODMatrix, scenario_desc):
 
     return list_of_kpi
 
+def into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_desc, st_cat_df, list_of_pivots):
+    """ This method writes the results into the cloned step-free spreadsheet. The original file will never be edited.
+    ...
+
+    :param grouped_origin_df: This dataframe contains the number of trips from every station in the country. Trips from
+    step-free stations (categories A and B1) are blanked so the final dataframe only has non step-free origins.
+    :param grouped_destination_df: This dataframe contains the number of trips to every station in the country. Trips
+    to step-free stations (categories A and B1) are blanked so the final dataframe only has non step-free destinations.
+
+    :param path_of_spreadsh: this is the clone of the step-free scoring spreadsheet created for each scenario
+
+    :param scenario_desc: scenario description provided by the user. Taken from the input template
+
+    :param st_cat_df: contains the updated station cateogries, the spreadsheet will calculate all the relevant metrics
+
+    :param list_of_pivots: dataframe generated by the regional_pivots method. This will be written into the pivot tab
+    of the spreadsheet.
+    """
+
+    target = original.replace('.xlsx', '_') +str(scenario)+'.xlsx'
+
+    #copying the path to spreadsheet file as the target scenario
+    shutil.copyfile(path_of_spreadsh, target)
+
+    #reading from the spreadsheet
+    new_st_cat_df = st_cat_df.copy()
+
+    # Next steps upgrading the data in the clone to this current scenario:
+    # 1. find the stations to be upgraded.
+    for code in upgrade_list.TLC:
+        if str(code) == 'nan':
+            continue
+
+        #if the current code is in the station category spreadsheet then upgrade st_cat_df with new category
+        if code in st_cat_df['CRS_Code'].values:
+            new_category = upgrade_list.loc[upgrade_list.TLC == code, 'New_Category'].item()
+            new_st_cat_df.loc[new_st_cat_df.CRS_Code == str(code), 'Including CP6 AfA'] = new_category
+        else:
+            continue
+
+    # Create the kpi's that will be saved in the spreadsheet
+
+    kpi_df = regional_kpi(New_ODMatrix, scenario_desc)
+
+    #export back to Excel
+    with pd.ExcelWriter(target, mode="a", engine="openpyxl", if_sheet_exists='replace') as writer:
+
+        new_st_cat_df.to_excel(writer, sheet_name="St_Cat", index=False)
+        kpi_df.to_excel(writer, sheet_name="KPI_Py", index=False)
+        grouped_origin_df.to_excel(writer, sheet_name="Inaccessible O Accessi D")
+        grouped_destination_df.to_excel(writer, sheet_name="Accessible O Inaccessi D")
+        list_of_pivots.to_excel(writer, sheet_name="Pivot")
+
+    # Open the Excel file so the formulas are calculated
+    excel = win32.gencache.EnsureDispatch('Excel.Application')
+    excel.DisplayAlerts = False
+    workbook = excel.Workbooks.Open(target)
+    # this must be the absolute path (r'C:/abc/def/ghi')
+    # workbook.RefreshAll()
+    workbook.Save()
+    workbook.Close()
+    excel.Quit()
+
+    #done
+
+
+def output_to_log(input_df, scenario):
+    """ This method writes the list of upgraded stations under each scenario into a txt file for reference.
+    ...
+
+    :param input_df: This dataframe contains.
+    :param scenario: scenario name.
+
+    """
+    now = datetime.now()
+    dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
+
+    with open(output_log_path, "a+") as file_object:
+        # Move read cursor to the start of file.
+        file_object.seek(0)
+        # If file is not empty then append '\n'
+        data = file_object.read(100)
+        if len(data) > 0 :
+            file_object.write("\n")
+        # Append text at the end of file
+        file_object.write("\n")
+        line = 'Scenario number: ' + str(scenario) + ' run at ' + dt_string
+        file_object.write(line)
+        file_object.write("\n")
+        file_object.write(str(input_df))
+        file_object.write("\n")
+
+def make_kepler_input(target, scenario):
+    """ This method creates the csv file that will be passed to Kepler to build maps of the output.
+    https://kepler.gl/demo
+    ...
+
+    :param scenario: scenario name.
+    :param path_of_spreadsh: this is the clone of the step-free scoring spreadsheet created for each scenario
+
+    """
+    # Grabbing the all stations tab from the selected scenario
+    final_df = pd.read_excel(target, sheet_name="All Stations", engine='openpyxl')
+    final_df.columns = [c.replace(' ', '_') for c in final_df.columns]
+
+    #naming this dataframe kepler as it will serve as the stations.csv file for kepler
+    kepler = pd.read_excel(target, sheet_name="Coordinates", header=2, usecols="B:F", engine='openpyxl')
+
+    #running over the final_df dafeframe and adding the new categories and other columns to it
+    for code in final_df.Unique_Code:
+        if str(code) == 'nan':
+            continue
+        if code in kepler.values:
+
+            # Update category. It is necessary to use the .item() method to the Series ,
+            kepler.loc[kepler.CRSCode == str(code), 'Step Free Category'] = final_df.loc[final_df.Unique_Code == code, 'ORR_Step_Free_Category'].item()
+            #kepler.loc[kepler.CRSCode == str(code), 'DfT Category']  = final_df.loc[final_df.Unique_Code == code, 'Dft_Category'].item()
+            kepler.loc[kepler.CRSCode == str(code), 'Journeys Unlocked']  = final_df.loc[final_df.Unique_Code == code, '2019_Total_Unlocked_Journeys'].item()
+            kepler.loc[kepler.CRSCode == str(code), 'Connectivity Rank']  = final_df.loc[final_df.Unique_Code == code, '2019_Connectivity_Rank'].item()
+            kepler.loc[kepler.CRSCode == str(code), 'Isolation Score']  = final_df.loc[final_df.Unique_Code == code, 'Mobility_and_Isolation_Matrix_Outcome'].item()
+            kepler.loc[kepler.CRSCode == str(code), 'Socioeconomic Score'] = final_df.loc[final_df.Unique_Code == code, 'Socioecon-Local_Impact_Matrix_Outcome'].item()
+            kepler.loc[kepler.CRSCode == str(code), 'Final Matrix Outcome']  = final_df.loc[final_df.Unique_Code == code, 'Final_Outcome'].item()
+            #kepler.loc[kepler.CRSCode == str(code), 'DfT Category A to F']  = get_DfT_Num_Cat(final_df.loc[final_df.Unique_Code == code, 'Dft_Category'].item())
+
+    #Exporting the file as a csv
+    csv_outpath = kepler_path + '\Stations_sc_' +str(scenario) + '.csv'
+    kepler.to_csv(csv_outpath)
+
+def scenario_input():
+
+    input_df = pd.read_excel(input_path, sheet_name="Diffs", engine='openpyxl', index_col=0)
+    input_df.drop(['Station Name (MOIRA Name)', 'CP5', 'CP6'], axis=1, inplace=True)
+    input_df.replace(to_replace="ignore", value=np.NaN, inplace=True)
+    all_scen_df = pd.read_excel(input_path, sheet_name="Scenario Master", engine='openpyxl', index_col=0)
+
+    return all_scen_df, input_df
+
 
 #Pseudo-Main
 
-original = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10.xlsx"
-clone = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10_clone.xlsx"
 shutil.copyfile(original, clone)
 
 path_of_spreadsh = clone
@@ -373,8 +429,7 @@ OD_df = input_OD_Matrix(st_cat_df)
 scenario = 'CP6'
 scenario_desc = pd.DataFrame(all_scen_df.loc[scenario][['Description', 'Notes']])
 print(f'{scenario} Started')
-target = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10_" + str(
-    scenario) + '.xlsx'
+target = original.replace('.xlsx', '_') + str(scenario) + '.xlsx'
 
 shutil.copyfile(path_of_spreadsh, target)
 kpi_df = regional_kpi(OD_df, scenario_desc)
@@ -385,16 +440,19 @@ with pd.ExcelWriter(target, mode="a", engine="openpyxl", if_sheet_exists='replac
     kpi_df.to_excel(writer, sheet_name="KPI_Py", index=False)
     list_of_pivots.to_excel(writer, sheet_name="Pivot")
 
-    # Open the Excel file so the formulas are calculated
-    excel = win32.gencache.EnsureDispatch('Excel.Application')
-    excel.DisplayAlerts = False
-    workbook = excel.Workbooks.Open(target)
-    # this must be the absolute path (r'C:/abc/def/ghi')
-    workbook.RefreshAll()
-    # workbook.Save() will update the formulas but it brings a dialog box which stops the execution
-    # of the code until the user selects a level of sensitivity (Public, General, Confidential, etc)
-    workbook.Close()
-    excel.Quit()
+# Open the Excel file so the formulas are calculated
+excel = win32.gencache.EnsureDispatch('Excel.Application')
+excel.DisplayAlerts = False
+workbook = excel.Workbooks.Open(target)
+# this must be the absolute path (r'C:/abc/def/ghi')
+# workbook.RefreshAll()
+workbook.Save()
+# workbook.Save() will update the formulas but it brings a dialog box which stops the execution
+# of the code until the user selects a level of sensitivity (Public, General, Confidential, etc)
+workbook.Close()
+excel.Quit()
+
+make_kepler_input(target, scenario)
 
 print(f"Base scenario run successfully.")
 
@@ -436,21 +494,8 @@ for scenario in input_df.columns:
         output_to_log(upgrade_list, str(scenario))
         #
         into_stepfree_spreadsheet(grouped_origin_df, grouped_destination_df, path_of_spreadsh, scenario_desc, st_cat_df, list_of_pivots)
-
-        # Open the Excel file so the formulas are calculated
-        # Source:
-        # https://stackoverflow.com/questions/27226407/dialog-box-handling-in-excel-through-python
-
-        # target = r"C:/Users/jose.delapaznoguera/OneDrive - Arup/NRAS Secondment/Automation/Step Free Scoring_JDL_v4.10_" + str(
-        #     scenario) + '.xlsx'
-        # # this must be the absolute path (r'C:/abc/def/ghi')
-
-        # excel = win32com.client.DispatchEx("Excel.Application")
-        # excel.DisplayAlerts = False
-        # workbook = excel.Workbooks.Open(target)
-        # workbook.RefreshAll()
-        # excel.Save()
-        # excel.Quit()
+        #
+        make_kepler_input(target, scenario)
 
         print(f"Scenario {scenario} run successfully. {len(upgrade_list)} stations were upgraded")
 
