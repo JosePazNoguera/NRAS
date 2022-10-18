@@ -470,8 +470,13 @@ for scenario in input_df.columns:
         # clones spreadsheet as to not affect the original when writing to the sheet
         print(f'{scenario} Started')
         shutil.copyfile(original, clone)
+        if all_scen_df.index.str.contains('J_CP5').sum() == 0:
+            print(f'Scenario {scenario} is missing a description. Execution will stop. \n Please provide a description in the template')
+            exit()
 
-        scenario_desc = pd.DataFrame(all_scen_df.loc[scenario][['Description', 'Notes']])
+        else:
+            scenario_desc = pd.DataFrame(all_scen_df.loc[scenario][['Description', 'Notes']])
+
         path_of_spreadsh = clone
 
         # base_df = pd.read_excel(path_of_spreadsh, sheet_name="All Stations", engine='openpyxl')
