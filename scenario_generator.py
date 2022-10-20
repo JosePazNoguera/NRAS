@@ -1,5 +1,5 @@
 '''
-Authors: Kharesa-Kesa and Jose
+Authors: Jose and Kharesa-Kesa
 This script will attempt to replicate the actions of the spreadsheet generating the all_stations tab
 '''
 
@@ -470,7 +470,7 @@ for scenario in input_df.columns:
         # clones spreadsheet as to not affect the original when writing to the sheet
         print(f'{scenario} Started')
         shutil.copyfile(original, clone)
-        if all_scen_df.index.str.contains('J_CP5').sum() == 0:
+        if all_scen_df.index.str.contains(scenario).sum() == 0:
             print(f'Scenario {scenario} is missing a description. Execution will stop. \n Please provide a description in the template')
             exit()
 
