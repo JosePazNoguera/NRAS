@@ -504,5 +504,4 @@ for scenario in input_df.columns:
 
         print(f"Scenario {scenario} run successfully. {len(upgrade_list)} stations were upgraded")
 
-os.remove(clone)
 print(f"Process finished successfully")
