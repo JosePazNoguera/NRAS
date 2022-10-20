@@ -3,7 +3,17 @@
 The project is designed to use a collection of indicators to flag and calculate scenarios in which to decide stations that should be upgraded to a step free and accessible category (A and B1)
 
 
-## Dashboard Script
+## Scenario_generator.py
+
+This script is written and designed to calculate scenario data relating to an upgrade or change in station categories allowing the user to run the code and generate results based on these new conditions.  
+
+`Scenarios.xlsx` - this is an Excel file containing all station codes under the column ‘CRS CODE’ and station name ‘Station Name (MOIRA Name)’. The following columns are the different scenarios to be processed, labelled by their scenario label i.e. ‘CW_CP7’ and new category labels for all stations to be upgraded within the rows below. The ‘SCENARIO MASTER’ sheet also contains the scenario description of each scenario label 
+
+`Step Free Scoring.xlsx` - this is a workbook previously created, containing the base scores and categories for all stations, this is read in as an input to be the template for the upgraded categories/scenario 
+
+`MOIRAOD.accdb` - the access database that is provided by NR, this provides the list of all stations, their categories and journey data, in the form of an O-D Matrix, this is read in a template for the journey data calculations 
+
+## Dashboard Script - powerbi_table_generator.py
 
 This script is written and design to calculate scenario data relating to an upgrade or change in station categories allowing the user to run the code in PowerBi and view the new values in the KPIs dynamically. 
 
